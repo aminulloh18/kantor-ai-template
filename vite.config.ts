@@ -22,6 +22,21 @@ const AGENTS = [
   { key: 'lita', nama: 'Inara', role: 'Product Designer', fokus: 'Kejelasan dokumentasi (README), alur pengguna (UX), dan konsistensi tampilan.' },
 ];
 
+function appendLog(entry: {
+  waktu: string;
+  agen: string;
+  aksi: 'AUDIT' | 'AUTO-SOLVE' | 'ROLLBACK';
+  status: 'SUKSES' | 'GAGAL';
+  ringkasan: string;
+  files?: string[];
+  commitHash?: string;
+}) {
+  const logPath = path.resolve('src/laporanLogs.json');
+  const existing = fs.existsSync(logPath) ? JSON.parse(fs.readFileSync(logPath, 'utf-8')) : [];
+  existing.unshift(entry);
+  fs.writeFileSync(logPath, JSON.stringify(existing.slice(0, 50), null, 2), 'utf-8');
+}
+
 async function fetchGithubContext(input: string, token?: string) {
   const match = input.match(/github\.com\/([^\/\s]+)\/([^\/\s#?]+)/);
   if (!match) return null;
@@ -43,22 +58,24 @@ async function fetchGithubContext(input: string, token?: string) {
   const treeData = await treeRes.json();
   const allFiles: string[] = (treeData.tree || []).filter((i: any) => i.type === 'blob').map((i: any) => i.path);
 
+  // Rampingkan jadi 6 file utama agar tidak kena timeout / fetch failed
   const selectedFiles = allFiles
-    .filter((f) => /\.(ts|tsx|js|jsx|py|json|md|html|css)$/i.test(f) && !/(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|\.min\.js)/i.test(f))
-    .slice(0, 12);
+    .filter((f) => /\.(ts|tsx|js|jsx|py|json|md)$/i.test(f) && !/(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|\.min\.js)/i.test(f))
+    .slice(0, 6);
 
-  let codeBundle = `REPO: ${owner}/${repo} (${repoInfo.description || '-'})\nSTRUKTUR FILE:\n${allFiles.slice(0, 50).join('\n')}\n\nISI KODE:\n`;
+  let codeBundle = `REPO: ${owner}/${repo} (${repoInfo.description || '-'})\nSTRUKTUR FILE:\n${allFiles.slice(0, 40).join('\n')}\n\nISI KODE:\n`;
   for (const filePath of selectedFiles) {
     const fileRes = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`, { headers });
     if (fileRes.ok) {
       const content = await fileRes.text();
-      codeBundle += `\n--- FILE: ${filePath} ---\n${content.slice(0, 4000)}\n`;
+      codeBundle += `\n--- FILE: ${filePath} ---\n${content.slice(0, 2000)}\n`;
     }
   }
   return { owner, repo, codeBundle };
 }
 
 async function callLLM(prompt: string, geminiKey?: string, groqKey?: string) {
+  // Prioritaskan Groq jika GROQ_API_KEY tersedia (cepat & bebas 503)
   if (groqKey) {
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -74,31 +91,40 @@ async function callLLM(prompt: string, geminiKey?: string, groqKey?: string) {
     return JSON.parse(data.choices?.[0]?.message?.content || '{}');
   }
 
+  // Jalur Gemini dengan retry & fallback model
   const models = ['gemini-3.8-flash', 'gemini-3.8-flash-lite', 'gemini-2.5-flash-lite'];
   for (const model of models) {
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: 'application/json' },
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        return JSON.parse(data.candidates?.[0]?.content?.parts?.[0]?.text || '{}');
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: 'application/json' },
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          return JSON.parse(data.candidates?.[0]?.content?.parts?.[0]?.text || '{}');
+        }
+        if (res.status === 503 || res.status === 429) {
+          await new Promise((r) => setTimeout(r, 2500 * attempt));
+          continue;
+        }
+        if (res.status === 404) break;
+        throw new Error(`Gemini Error (${res.status})`);
+      } catch (err: any) {
+        if (attempt < 3) {
+          await new Promise((r) => setTimeout(r, 2000));
+          continue;
+        }
+        throw err;
       }
-      if (res.status === 503 || res.status === 429) {
-        await new Promise((r) => setTimeout(r, 2000));
-        continue;
-      }
-      if (res.status === 404) break;
-      throw new Error(`Gemini Error (${res.status})`);
     }
   }
-  throw new Error('Server LLM sedang padat (503). Coba lagi beberapa detik.');
+  throw new Error('Server Gemini sedang padat (503). Pasang GROQ_API_KEY di .env atau coba lagi sebentar.');
 }
 
 function getLocalProjectContext() {
@@ -107,25 +133,12 @@ function getLocalProjectContext() {
   for (const rel of targetFiles) {
     const full = path.resolve(rel);
     if (fs.existsSync(full)) {
-      bundle += `\n--- FILE LOKAL: ${rel} ---\n${fs.readFileSync(full, 'utf-8')}\n`;
+      bundle += `\n--- FILE LOKAL: ${rel} ---\n${fs.readFileSync(full, 'utf-8').slice(0, 3500)}\n`;
     }
   }
   return bundle;
 }
-function appendLog(entry: {
-  waktu: string;
-  agen: string;
-  aksi: 'AUDIT' | 'AUTO-SOLVE' | 'ROLLBACK';
-  status: 'SUKSES' | 'GAGAL';
-  ringkasan: string;
-  files?: string[];
-  commitHash?: string;
-}) {
-  const logPath = path.resolve('src/laporanLogs.json');
-  const existing = fs.existsSync(logPath) ? JSON.parse(fs.readFileSync(logPath, 'utf-8')) : [];
-  existing.unshift(entry); // Log terbaru di paling atas
-  fs.writeFileSync(logPath, JSON.stringify(existing.slice(0, 50), null, 2), 'utf-8');
-}
+
 function agentLabPlugin(): Plugin {
   return {
     name: 'yafizhan-ai-lab-api',
@@ -187,7 +200,19 @@ Kembalikan HANYA JSON valid:
               }
               fs.writeFileSync(laporanPath, JSON.stringify(laporanLive, null, 2));
               fs.writeFileSync(detailPath, JSON.stringify(detailLive, null, 2));
+
+              // Jeda 1.5 detik antar agen agar koneksi tetap stabil
+              await new Promise((r) => setTimeout(r, 1500));
             }
+
+            appendLog({
+              waktu: new Date().toLocaleTimeString('id-ID'),
+              agen: 'Tim Yafizhan AI Lab',
+              aksi: 'AUDIT',
+              status: 'SUKSES',
+              ringkasan: `Selesai memproses: "${prompt}"`,
+            });
+
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify({ ok: true }));
           } catch (err: any) {
@@ -212,7 +237,6 @@ Kembalikan HANYA JSON valid:
             const laporanPath = path.resolve('src/laporan.json');
             const laporan = JSON.parse(fs.readFileSync(laporanPath, 'utf-8'));
 
-            // Update status agen jadi sedang coding perbaikan
             laporan[agentKey] = { ...laporan[agentKey], ringkasan: `🛠️ Sedang menulis kode perbaikan...` };
             fs.writeFileSync(laporanPath, JSON.stringify(laporan, null, 2));
 
@@ -255,25 +279,40 @@ Kembalikan HANYA JSON valid dengan format:
               modifiedFiles.push(f.filePath);
             }
 
-            // Validasi QA oleh Jehan: jalankan npm run build
             laporan[agentKey] = { ...laporan[agentKey], ringkasan: `🔍 Jehan memvalidasi build & test...` };
             fs.writeFileSync(laporanPath, JSON.stringify(laporan, null, 2));
 
             try {
               execSync('npm run build', { stdio: 'pipe' });
-            } catch (buildErr: any) {
-              // Rollback jika gagal build!
+            } catch {
               execSync(`git checkout -- ${modifiedFiles.join(' ')}`, { stdio: 'pipe' });
+              appendLog({
+                waktu: new Date().toLocaleTimeString('id-ID'),
+                agen: agentName,
+                aksi: 'ROLLBACK',
+                status: 'GAGAL',
+                ringkasan: 'Gagal lolos npm run build, perubahan dibatalkan otomatis.',
+                files: modifiedFiles,
+              });
               throw new Error('Gagal lolos npm run build, perubahan otomatis dibatalkan demi keamanan.');
             }
 
-            // Git add, commit, & push ke GitHub
             const safeMsg = (solution.commitMessage || `fix: solved by ${agentName}`).replace(/"/g, "'");
             execSync(`git add ${modifiedFiles.join(' ')}`, { stdio: 'pipe' });
             execSync(`git commit -m "${safeMsg}"`, { stdio: 'pipe' });
             execSync('git push', { stdio: 'pipe' });
 
-            // Bersihkan warning/menunggu karena sudah selesai di-push!
+            const commitHash = execSync('git rev-parse --short HEAD').toString().trim();
+            appendLog({
+              waktu: new Date().toLocaleTimeString('id-ID'),
+              agen: agentName,
+              aksi: 'AUTO-SOLVE',
+              status: 'SUKSES',
+              ringkasan: solution.penjelasan,
+              files: modifiedFiles,
+              commitHash,
+            });
+
             laporan[agentKey] = {
               ringkasan: `✅ Solved & Pushed: ${solution.penjelasan}`,
               angka: [{ label: 'File Diubah', nilai: `${modifiedFiles.length} file` }],
