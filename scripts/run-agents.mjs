@@ -119,18 +119,40 @@ async function callLLM(prompt) {
     return JSON.parse(data.choices?.[0]?.message?.content || '{}');
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${GEMINI_KEY}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { responseMimeType: 'application/json' },
-    }),
-  });
-  if (!res.ok) throw new Error(`Gemini API Error (${res.status}): ${await res.text()}`);
-  const data = await res.json();
-  return JSON.parse(data.candidates?.[0]?.content?.parts?.[0]?.text || '{}');
+  // Daftar model Gemini (coba model utama dulu, lalu fallback ke lite/pro kalau 503)
+  const models = ['gemini-3.8-flash', 'gemini-3.8-flash-lite', 'gemini-2.5-flash-lite'];
+
+  for (const model of models) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: 'application/json' },
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        return JSON.parse(data.candidates?.[0]?.content?.parts?.[0]?.text || '{}');
+      }
+
+      // Kalau 503 (server sibuk), tunggu 2 detik lalu coba lagi / pindah model cadangan
+      if (res.status === 503 || res.status === 429) {
+        await new Promise((r) => setTimeout(r, 2000));
+        continue;
+      }
+
+      // Kalau 404 (nama model cadangan tidak ada), langsung lompat ke model berikutnya
+      if (res.status === 404) break;
+
+      throw new Error(`Gemini API Error (${res.status}): ${await res.text()}`);
+    }
+  }
+
+  throw new Error('Semua model Gemini sedang padat (503). Coba jalankan ulang beberapa detik lagi.');
 }
 
 async function runLabSprint() {
