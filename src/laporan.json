@@ -29,7 +29,7 @@
     ]
   },
   "riska": {
-    "ringkasan": "Re-render 100ms boroskan CPU dan prompt agen bocor di bundle client frontend.",
+    "ringkasan": "🛠️ Sedang menulis kode perbaikan...",
     "menunggu": [
       "Pindahkan agentPrompts.ts ke sisi backend/API agar system prompt aman dan bundle client lebih ramping."
     ],
@@ -75,7 +75,7 @@
     ]
   },
   "lita": {
-    "ringkasan": "Dokumentasi lisensi ambigu dan HUD form bentrok dengan elemen kredit di layar ponsel.",
+    "ringkasan": "🔍 Jehan memvalidasi build & test...",
     "menunggu": [
       "Penyelarasan lisensi MIT vs Nonkomersial dan reposisi meja Jehan (QA) ke ruang Quality & Data"
     ],

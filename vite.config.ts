@@ -112,7 +112,20 @@ function getLocalProjectContext() {
   }
   return bundle;
 }
-
+function appendLog(entry: {
+  waktu: string;
+  agen: string;
+  aksi: 'AUDIT' | 'AUTO-SOLVE' | 'ROLLBACK';
+  status: 'SUKSES' | 'GAGAL';
+  ringkasan: string;
+  files?: string[];
+  commitHash?: string;
+}) {
+  const logPath = path.resolve('src/laporanLogs.json');
+  const existing = fs.existsSync(logPath) ? JSON.parse(fs.readFileSync(logPath, 'utf-8')) : [];
+  existing.unshift(entry); // Log terbaru di paling atas
+  fs.writeFileSync(logPath, JSON.stringify(existing.slice(0, 50), null, 2), 'utf-8');
+}
 function agentLabPlugin(): Plugin {
   return {
     name: 'yafizhan-ai-lab-api',
