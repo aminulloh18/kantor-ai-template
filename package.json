@@ -8,6 +8,7 @@
     "dev": "vite --port 5173",
     "build": "tsc -b && vite build",
     "test": "node scripts/test.mjs",
+    "agent": "node scripts/run-agents.mjs",
     "rekam": "node scripts/rekam.mjs"
   },
   "dependencies": {

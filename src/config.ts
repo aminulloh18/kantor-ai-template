@@ -123,13 +123,13 @@ export type Aktivitas = 'kerja' | 'laporan' | 'belajar';
 
 /** Jadwal kerja (WIB). `agen: '*'` = semua agen. `hari` 1 = Senin … 7 = Minggu. `menit` = lama tampil. */
 export const JADWAL: { agen: string[] | '*'; mulai: string; menit: number; hari: number[]; aktivitas: Aktivitas; label: string }[] = [
-  { agen: ['riska'], mulai: '07:32', menit: 25, hari: [1, 2, 3, 4, 5], aktivitas: 'kerja', label: 'merapikan email pagi…' },
-  { agen: ['raka'], mulai: '07:57', menit: 30, hari: [1, 2, 3, 4, 5], aktivitas: 'kerja', label: 'radar tender…' },
-  { agen: ['sekar'], mulai: '08:05', menit: 30, hari: [1, 2, 3, 4, 5], aktivitas: 'kerja', label: 'cari calon klien…' },
-  { agen: ['gilang'], mulai: '08:12', menit: 30, hari: [1, 2, 3, 4, 5], aktivitas: 'kerja', label: 'riset pasar…' },
-  { agen: ['riska'], mulai: '08:18', menit: 30, hari: [1, 2, 3, 4, 5], aktivitas: 'kerja', label: 'menyisir email lama…' },
-  { agen: '*', mulai: '15:42', menit: 25, hari: [1, 2, 3, 4, 5], aktivitas: 'laporan', label: 'menulis laporan harian…' },
-  { agen: '*', mulai: '20:00', menit: 120, hari: [1, 2, 3, 4, 5, 6, 7], aktivitas: 'belajar', label: 'belajar malam…' },
+  { agen: ['riska'], mulai: '07:32', menit: 25, hari: [1, 2, 3, 4, 5], aktivitas: 'kerja', label: 'audit biaya token & database…' },
+  { agen: ['raka'], mulai: '07:57', menit: 30, hari: [1, 2, 3, 4, 5], aktivitas: 'kerja', label: 'review arsitektur & backlog…' },
+  { agen: ['sekar'], mulai: '08:05', menit: 30, hari: [1, 2, 3, 4, 5], aktivitas: 'kerja', label: 'coding komponen & integrasi API…' },
+  { agen: ['gilang'], mulai: '08:12', menit: 30, hari: [1, 2, 3, 4, 5], aktivitas: 'kerja', label: 'pengujian keamanan & unit test…' },
+  { agen: ['esok', 'lita'], mulai: '08:18', menit: 30, hari: [1, 2, 3, 4, 5], aktivitas: 'kerja', label: 'riset model AI & desain UX…' },
+  { agen: '*', mulai: '15:42', menit: 25, hari: [1, 2, 3, 4, 5], aktivitas: 'laporan', label: 'menulis laporan sprint harian…' },
+  { agen: '*', mulai: '20:00', menit: 120, hari: [1, 2, 3, 4, 5, 6, 7], aktivitas: 'belajar', label: 'eksplorasi paper & benchmark AI…' },
 ];
 
 /** Jam kantor: di luar jadwal, agen "siap menerima perintah" (atau ngopi, lihat papan, ngobrol). */
@@ -154,7 +154,7 @@ export const LAPORAN: Record<string, Laporan> = laporanAgen;
 
 /** Timelapse: satu hari dalam tiga babak (detik = lama tiap babak di video). */
 export const BABAK = [
-  { dari: '07:28', sampai: '08:44', detik: 12, judul: 'Pagi · radar & email' },
-  { dari: '15:36', sampai: '16:10', detik: 9, judul: 'Sore · laporan harian' },
-  { dari: '19:52', sampai: '20:26', detik: 9, judul: 'Malam · belajar' },
+  { dari: '07:28', sampai: '08:44', detik: 12, judul: 'Pagi · standup & coding sprint' },
+  { dari: '15:36', sampai: '16:10', detik: 9, judul: 'Sore · laporan & audit QA' },
+  { dari: '19:52', sampai: '20:26', detik: 9, judul: 'Malam · riset AI' },
 ];

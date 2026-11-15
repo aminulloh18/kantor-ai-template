@@ -1,58 +1,58 @@
 {
   "raka": {
-    "ringkasan": "Enam paket tender baru; dua cocok, satu Rakor Dinas Contoh sedang dikejar.",
+    "ringkasan": "Arsitektur multi-agent orchestrator selesai dirancang; 3 modul siap dieksekusi.",
     "menunggu": [
-      "Setujui batch email B012 (30 kontak)"
+      "Setujui skema routing JSON antar-agen (v1.2)"
     ],
     "angka": [
       {
-        "label": "Paket baru",
-        "nilai": "6 paket"
+        "label": "Sprint aktif",
+        "nilai": "3 modul"
       }
     ]
   },
   "sekar": {
-    "ringkasan": "Tiga kampus contoh membalas penawaran; satu minta sampel.",
+    "ringkasan": "Komponen UI Mission Board dan panel chat agen sudah terintegrasi.",
     "menunggu": [
-      "Kirim sampel ke Kampus Contoh?"
+      "Merge branch feat/agent-chat-ui ke main?"
     ],
     "angka": [
       {
-        "label": "Calon klien",
-        "nilai": "12 kontak"
+        "label": "PR siap review",
+        "nilai": "4 PR"
       }
     ]
   },
   "gilang": {
-    "ringkasan": "Brief video Festival Contoh masuk; storyboard awal disiapkan.",
+    "ringkasan": "Ditemukan potensi kebocoran API key di client bundle; patch disiapkan.",
     "mendesak": [
-      "Tenggat penawaran Festival Contoh besok 10.00"
+      "Pindahkan pemanggilan LLM API ke server/proxy sebelum deploy!"
     ]
   },
   "riska": {
-    "ringkasan": "212 email dirapikan; dua email phishing ditandai.",
+    "ringkasan": "Pemakaian token hari ini efisien; skema JSON laporan sudah tervalidasi.",
     "menunggu": [
-      "Periksa draf invoice termin 2"
+      "Setujui batas kuota harian 500k token"
     ],
     "angka": [
       {
-        "label": "Email dilabel",
-        "nilai": "212 email"
+        "label": "Token terpakai",
+        "nilai": "42.8k"
       }
     ]
   },
   "esok": {
-    "ringkasan": "Tiga alternatif konsep Rakor Dinas Contoh selesai.",
+    "ringkasan": "Benchmark Gemini 2.5 Flash vs Pro selesai untuk tugas routing & coding.",
     "menunggu": [
-      "Pilih konsep Rakor Dinas Contoh"
+      "Pilih model default untuk Yafizhan & Fathiyyan"
     ]
   },
   "lita": {
-    "ringkasan": "Deck 14 slide Festival Contoh siap ditinjau.",
+    "ringkasan": "Wireframe panel perintah user dan indikator status agen selesai.",
     "angka": [
       {
-        "label": "Desain selesai",
-        "nilai": "4 berkas"
+        "label": "Komponen UI",
+        "nilai": "6 layar"
       }
     ]
   }
