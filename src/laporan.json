@@ -1,12 +1,72 @@
 {
   "raka": {
-    "ringkasan": "❌ Gagal terhubung ke API LLM."
+    "ringkasan": "Arsitektur scene 3D monolitik tanpa disposal WebGL berpotensi memory leak.",
+    "menunggu": [
+      "Pemisahan modularitas OfficeScene.tsx menjadi sub-komponen deklaratif (R3F) atau domain controller"
+    ],
+    "mendesak": [
+      "Eksekusi pembersihan WebGL/Three.js belum lengkap saat unmount di OfficeScene.tsx"
+    ],
+    "angka": [
+      {
+        "label": "Gaya Terdaftar",
+        "nilai": "17 gaya"
+      },
+      {
+        "label": "Agen Aktif",
+        "nilai": "6 agen"
+      },
+      {
+        "label": "Tech Debt",
+        "nilai": "4 berkas"
+      }
+    ]
   },
   "sekar": {
-    "ringkasan": "❌ Gagal terhubung ke API LLM."
+    "ringkasan": "Interval 100ms di App memicu re-render boros; pisahkan loop Three.js dari React state.",
+    "menunggu": [
+      "Refactor state timer di App.tsx ke requestAnimationFrame terisolasi pada OfficeScene untuk hemat CPU."
+    ],
+    "mendesak": [
+      "Potensi memory leak WebGL di OfficeScene.tsx akibat absennya pembersihan renderer dan mesh saat unmount."
+    ],
+    "angka": [
+      {
+        "label": "Interval Render",
+        "nilai": "100 ms"
+      },
+      {
+        "label": "Frekuensi Render",
+        "nilai": "10 Hz"
+      },
+      {
+        "label": "Total Karakter",
+        "nilai": "6 agen"
+      }
+    ]
   },
   "gilang": {
-    "ringkasan": "❌ Gagal terhubung ke API LLM."
+    "ringkasan": "Dependensi TypeScript tidak valid dan risiko kebocoran konteks WebGL saat ganti gaya.",
+    "menunggu": [
+      "Refaktor pembersihan memori Three.js (dispose renderer & material) saat berganti gaya 3D secara dinamis."
+    ],
+    "mendesak": [
+      "Versi dependensi 'typescript': '^7.0.2' di package.json tidak valid dan menyebabkan kegagalan npm install / CI build."
+    ],
+    "angka": [
+      {
+        "label": "Isu Dependensi",
+        "nilai": "1 paket"
+      },
+      {
+        "label": "Risiko Kebocoran",
+        "nilai": "1 modul"
+      },
+      {
+        "label": "Celah Sanitasi",
+        "nilai": "2 lokasi"
+      }
+    ]
   },
   "riska": {
     "ringkasan": "❌ Gagal terhubung ke API LLM."
@@ -15,6 +75,6 @@
     "ringkasan": "❌ Gagal terhubung ke API LLM."
   },
   "lita": {
-    "ringkasan": "❌ Gagal terhubung ke API LLM."
+    "ringkasan": "⏳ Sedang menganalisis kantor-ai-template..."
   }
 }

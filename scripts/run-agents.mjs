@@ -1,5 +1,21 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawn } from 'node:child_process';
+import net from 'node:net';
+
+// Cek apakah localhost:5173 sudah nyala; kalau belum, nyalakan npm run dev di background
+const isDevRunning = await new Promise((resolve) => {
+  const socket = net.connect(5173, '127.0.0.1');
+  socket.on('connect', () => { socket.destroy(); resolve(true); });
+  socket.on('error', () => resolve(false));
+});
+
+if (!isDevRunning) {
+  console.log('🌐 Menyalakan server Kantor 3D di background (http://localhost:5173/?libur=1)...');
+  const devProc = spawn('npm', ['run', 'dev'], { shell: true, detached: true, stdio: 'ignore' });
+  devProc.unref();
+  await new Promise((r) => setTimeout(r, 2500)); // Tunggu Vite siap
+}
 
 // 1. Load .env manual
 const envPath = path.resolve('.env');
