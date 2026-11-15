@@ -43,11 +43,11 @@ function appendLog(entry: {
 }
 
 async function fetchGithubContext(input: string, token?: string) {
-  const match = input.match(/github\.com\/([^\/\s]+)\/([^\/\s#?]+)/);
-  if (!match) return null;
+  const match = input.match(/github\.com\/([^\/\s"'`]+)\/([^\/\s#?"'`]+)/);
+if (!match) return null;
 
-  const owner = match[1];
-  const repo = match[2].replace(/\.git\$/, '');
+const owner = match[1];
+const repo = match[2].replace(/\.git$/, '').replace(/["'`.,)]+$/, '');
   const headers: Record<string, string> = {
     Accept: 'application/vnd.github.v3+json',
     'User-Agent': 'Yafizhan-AI-Lab',

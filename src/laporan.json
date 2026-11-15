@@ -1,1 +1,46 @@
-{}
+{
+  "raka": {
+    "ringkasan": "Kode jalan tapi ada masalah performa, dependensi versi tak valid, dan import yang hilang",
+    "menunggu": [
+      "Ubah interval 100 ms menjadi requestAnimationFrame atau setInterval 500 ms",
+      "Perbaiki package.json ke versi React 18 dan TypeScript 5.x"
+    ],
+    "mendesak": [
+      "Import BABAK, JAM_KANTOR, LAPORAN tidak didefinisikan di config → runtime error",
+      "React 19 tidak ada, build gagal"
+    ],
+    "angka": [
+      {
+        "label": "Agent count",
+        "nilai": "6 unit"
+      },
+      {
+        "label": "Room count",
+        "nilai": "3 unit"
+      },
+      {
+        "label": "Render interval",
+        "nilai": "100 ms"
+      },
+      {
+        "label": "TS errors",
+        "nilai": "3 buah"
+      }
+    ]
+  },
+  "sekar": {
+    "ringkasan": "❌ Groq Error (429): {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m7ev6bj8ebs8bjj5ekv0swk2` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 5622, Requested 5456. Please try again in 23.084999999s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n"
+  },
+  "gilang": {
+    "ringkasan": "❌ Groq Error (429): {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m7ev6bj8ebs8bjj5ekv0swk2` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 5250, Requested 6426. Please try again in 27.57s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n"
+  },
+  "riska": {
+    "ringkasan": "❌ Groq Error (429): {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m7ev6bj8ebs8bjj5ekv0swk2` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 4842, Requested 6424. Please try again in 24.495s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n"
+  },
+  "esok": {
+    "ringkasan": "❌ Groq Error (429): {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m7ev6bj8ebs8bjj5ekv0swk2` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 4402, Requested 6422. Please try again in 21.18s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n"
+  },
+  "lita": {
+    "ringkasan": "❌ Groq Error (429): {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m7ev6bj8ebs8bjj5ekv0swk2` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 3884, Requested 6421. Please try again in 17.2875s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n"
+  }
+}
