@@ -8,8 +8,13 @@ function loadEnvLocal() {
   const envPath = path.resolve('.env');
   if (!fs.existsSync(envPath)) return;
   for (const line of fs.readFileSync(envPath, 'utf-8').split('\n')) {
-    const [k, ...v] = line.split('=');
-    if (k && v.length) process.env[k.trim()] = v.join('=').trim();
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eqIdx = trimmed.indexOf('=');
+    if (eqIdx === -1) continue;
+    const k = trimmed.slice(0, eqIdx).trim();
+    const v = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, '');
+    if (k) process.env[k] = v;
   }
 }
 
@@ -150,6 +155,17 @@ function getLocalProjectContext() {
   }
   return bundle;
 }
+function ensureDataFiles() {
+  const defaults: Record<string, string> = {
+    'src/laporan.json': '{}',
+    'src/laporanDetail.json': '{}',
+    'src/laporanLogs.json': '[]',
+  };
+  for (const [rel, content] of Object.entries(defaults)) {
+    const full = path.resolve(rel);
+    if (!fs.existsSync(full)) fs.writeFileSync(full, content, 'utf-8');
+  }
+}
 
 function agentLabPlugin(): Plugin {
   let sprintCancelled = false;
@@ -240,9 +256,11 @@ Kembalikan HANYA JSON valid:
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify({ ok: true, cancelled: sprintCancelled }));
           } catch (err: any) {
+            console.error('❌ [/api/run-sprint ERROR]:', err);
             res.statusCode = 500;
-            res.end(JSON.stringify({ ok: false, error: err.message }));
-          }
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ ok: false, error: err?.message || String(err) }));
+            }
         });
       });
 
