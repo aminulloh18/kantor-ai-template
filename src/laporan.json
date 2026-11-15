@@ -6,15 +6,95 @@
     "ringkasan": "❌ Gagal terhubung ke API LLM."
   },
   "gilang": {
-    "ringkasan": "❌ Gagal terhubung ke API LLM."
+    "ringkasan": "Dependency anomali di package.json dan risiko WebGL context leak saat ganti gaya 3D.",
+    "menunggu": [
+      "Klarifikasi dual lisensi: package.json mengklaim MIT, namun index.html memuat lisensi Nonkomersial Maliki Studio."
+    ],
+    "mendesak": [
+      "Koreksi versi dependensi di package.json: 'typescript: ^7.0.2' dan 'vite: ^8.3.1' tidak valid dan menggagalkan instalasi baru."
+    ],
+    "angka": [
+      {
+        "label": "Dependensi Anomali",
+        "nilai": "2 paket"
+      },
+      {
+        "label": "Risiko Memory",
+        "nilai": "1 kebocoran"
+      },
+      {
+        "label": "Celah Validasi",
+        "nilai": "1 endpoint"
+      }
+    ]
   },
   "riska": {
-    "ringkasan": "❌ Gagal terhubung ke API LLM."
+    "ringkasan": "Re-render 100ms boroskan CPU dan prompt agen bocor di bundle client frontend.",
+    "menunggu": [
+      "Pindahkan agentPrompts.ts ke sisi backend/API agar system prompt aman dan bundle client lebih ramping."
+    ],
+    "mendesak": [
+      "State 'now' di App.tsx dipicu tiap 100ms menyebabkan 10 re-render/detik pada seluruh pohon komponen."
+    ],
+    "angka": [
+      {
+        "label": "Frekuensi Render",
+        "nilai": "10 Hz"
+      },
+      {
+        "label": "Agen Terdaftar",
+        "nilai": "6 Agen"
+      },
+      {
+        "label": "Gaya Terpasang",
+        "nilai": "16 Preset"
+      }
+    ]
   },
   "esok": {
-    "ringkasan": "❌ Gagal terhubung ke API LLM."
+    "ringkasan": "Prompt agen statis tanpa memory/RAG, endpoint sprint rentan injeksi prompt.",
+    "menunggu": [
+      "Persetujuan implementasi runtime LangChain/LlamaIndex dan dynamic system prompt injection"
+    ],
+    "mendesak": [
+      "Validasi sanitasi payload pada /api/run-sprint di App.tsx untuk cegah direct prompt injection"
+    ],
+    "angka": [
+      {
+        "label": "Agen AI",
+        "nilai": "6 personil"
+      },
+      {
+        "label": "Cakupan Gaya",
+        "nilai": "17 tema"
+      },
+      {
+        "label": "Skema Audit",
+        "nilai": "1 prompt"
+      }
+    ]
   },
   "lita": {
-    "ringkasan": "❌ Gagal terhubung ke API LLM."
+    "ringkasan": "Dokumentasi lisensi ambigu dan HUD form bentrok dengan elemen kredit di layar ponsel.",
+    "menunggu": [
+      "Penyelarasan lisensi MIT vs Nonkomersial dan reposisi meja Jehan (QA) ke ruang Quality & Data"
+    ],
+    "mendesak": [
+      "Formulir sprint di App.tsx memanggil endpoint /api/run-sprint tanpa mock dev sehingga gagal eksekusi"
+    ],
+    "angka": [
+      {
+        "label": "Konflik Lisensi",
+        "nilai": "2 Berkas"
+      },
+      {
+        "label": "Mismatch Ruang",
+        "nilai": "1 Agen"
+      },
+      {
+        "label": "Isu Aksesibilitas",
+        "nilai": "3 Temuan"
+      }
+    ]
   }
 }

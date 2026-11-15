@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
@@ -100,60 +101,64 @@ async function callLLM(prompt: string, geminiKey?: string, groqKey?: string) {
   throw new Error('Server LLM sedang padat (503). Coba lagi beberapa detik.');
 }
 
+function getLocalProjectContext() {
+  const targetFiles = ['src/App.tsx', 'src/config.ts', 'src/office.ts', 'src/agentPrompts.ts', 'package.json'];
+  let bundle = '';
+  for (const rel of targetFiles) {
+    const full = path.resolve(rel);
+    if (fs.existsSync(full)) {
+      bundle += `\n--- FILE LOKAL: ${rel} ---\n${fs.readFileSync(full, 'utf-8')}\n`;
+    }
+  }
+  return bundle;
+}
+
 function agentLabPlugin(): Plugin {
   return {
     name: 'yafizhan-ai-lab-api',
     configureServer(server) {
+      // 1. Endpoint Analisis & Audit
       server.middlewares.use('/api/run-sprint', async (req, res) => {
-        if (req.method !== 'POST') {
-          res.statusCode = 405;
-          return res.end('Method Not Allowed');
-        }
-
+        if (req.method !== 'POST') return ((res.statusCode = 405), res.end('Method Not Allowed'));
         loadEnvLocal();
         let body = '';
-        req.on('data', (chunk) => (body += chunk));
+        req.on('data', (c) => (body += c));
         req.on('end', async () => {
           try {
             const { prompt } = JSON.parse(body || '{}');
-            if (!prompt) throw new Error('Instruksi tidak boleh kosong.');
-
+            if (!prompt) throw new Error('Instruksi kosong.');
             const geminiKey = process.env.GEMINI_API_KEY;
             const groqKey = process.env.GROQ_API_KEY;
-            if (!geminiKey && !groqKey) throw new Error('GEMINI_API_KEY atau GROQ_API_KEY belum diset di .env');
+            if (!geminiKey && !groqKey) throw new Error('API Key belum diset di .env');
 
             const laporanPath = path.resolve('src/laporan.json');
             const detailPath = path.resolve('src/laporanDetail.json');
-
             const githubData = await fetchGithubContext(prompt, process.env.GITHUB_TOKEN);
             const laporanLive: Record<string, any> = {};
             const detailLive: Record<string, string> = {};
 
-            for (const a of AGENTS) {
-              laporanLive[a.key] = { ringkasan: 'Menunggu giliran...' };
-            }
+            for (const a of AGENTS) laporanLive[a.key] = { ringkasan: 'Menunggu giliran...' };
             fs.writeFileSync(laporanPath, JSON.stringify(laporanLive, null, 2));
 
             for (const agen of AGENTS) {
               laporanLive[agen.key] = { ringkasan: `⏳ Sedang menganalisis...` };
               fs.writeFileSync(laporanPath, JSON.stringify(laporanLive, null, 2));
 
-              const konteksKode = githubData ? `\nKode repo GitHub:\n${githubData.codeBundle}` : '';
+              const konteksKode = githubData ? `\nKode repo GitHub:\n${githubData.codeBundle}` : `\nKode lokal:\n${getLocalProjectContext()}`;
               const promptAgen = `
 Kamu adalah ${agen.nama}, ${agen.role} di YAFIZHAN AI LAB.
 Fokus keahlianmu: ${agen.fokus}
 Instruksi user: "${prompt}"
 ${konteksKode}
 
-Kembalikan HANYA JSON valid dengan format persis:
+Kembalikan HANYA JSON valid:
 {
-  "ringkasan": "1 kalimat singkat (< 85 karakter) hasil kerjamu untuk gelembung di atas kepala",
-  "menunggu": ["1 keputusan yang butuh persetujuan user (kosongkan [] jika tidak ada)"],
+  "ringkasan": "1 kalimat singkat (< 85 karakter) temuan/hasil kerjamu",
+  "menunggu": ["1 keputusan/solusi yang siap dieksekusi (kosongkan [] jika tidak ada)"],
   "mendesak": ["1 temuan bug fatal / celah keamanan serius (kosongkan [] jika aman)"],
   "angka": [{ "label": "Metrik (2 kata)", "nilai": "Angka + satuan" }],
-  "detailTeknis": "Hasil analisis/kode/rekomendasi lengkap & konkret dalam Bahasa Indonesia."
+  "detailTeknis": "Hasil analisis lengkap & konkret dalam Bahasa Indonesia."
 }`;
-
               try {
                 const hasil = await callLLM(promptAgen, geminiKey, groqKey);
                 laporanLive[agen.key] = {
@@ -165,15 +170,105 @@ Kembalikan HANYA JSON valid dengan format persis:
                 detailLive[agen.key] = hasil.detailTeknis || hasil.ringkasan;
               } catch (err: any) {
                 laporanLive[agen.key] = { ringkasan: `❌ ${err.message}` };
-                detailLive[agen.key] = `Terjadi kendala saat memproses: ${err.message}`;
+                detailLive[agen.key] = err.message;
               }
-
               fs.writeFileSync(laporanPath, JSON.stringify(laporanLive, null, 2));
               fs.writeFileSync(detailPath, JSON.stringify(detailLive, null, 2));
             }
-
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify({ ok: true }));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ ok: false, error: err.message }));
+          }
+        });
+      });
+
+      // 2. Endpoint Autonomous Solve + Build Check + Git Push
+      server.middlewares.use('/api/auto-solve', async (req, res) => {
+        if (req.method !== 'POST') return ((res.statusCode = 405), res.end('Method Not Allowed'));
+        loadEnvLocal();
+        let body = '';
+        req.on('data', (c) => (body += c));
+        req.on('end', async () => {
+          try {
+            const { agentKey, agentName, problemSummary } = JSON.parse(body || '{}');
+            const geminiKey = process.env.GEMINI_API_KEY;
+            const groqKey = process.env.GROQ_API_KEY;
+
+            const laporanPath = path.resolve('src/laporan.json');
+            const laporan = JSON.parse(fs.readFileSync(laporanPath, 'utf-8'));
+
+            // Update status agen jadi sedang coding perbaikan
+            laporan[agentKey] = { ...laporan[agentKey], ringkasan: `🛠️ Sedang menulis kode perbaikan...` };
+            fs.writeFileSync(laporanPath, JSON.stringify(laporan, null, 2));
+
+            const solvePrompt = `
+Kamu adalah Fathiyyan (Frontend/Fullstack Dev) & Jehan (QA) membantu ${agentName} di YAFIZHAN AI LAB.
+Tugasmu: Selesaikan masalah berikut secara nyata pada kode proyek lokal ini:
+MASALAH: "${problemSummary}"
+
+Berikut adalah isi file kode lokal saat ini:
+${getLocalProjectContext()}
+
+Aturan ketat:
+1. Pilih HANYA file yang benar-benar relevan untuk diperbaiki (misal "src/App.tsx" atau "src/config.ts").
+2. Kembalikan ISI FILE LENGKAP yang sudah diperbaiki (jangan dipotong dengan "...").
+3. Pastikan tidak ada syntax error atau error TypeScript agar "npm run build" sukses.
+4. Dilarang menyentuh file .env atau menghapus fungsi inti yang sudah berjalan.
+
+Kembalikan HANYA JSON valid dengan format:
+{
+  "commitMessage": "fix: deskripsi singkat perbaikan",
+  "penjelasan": "Ringkasan perbaikan yang dilakukan (< 80 karakter)",
+  "files": [
+    { "filePath": "src/namaFile.tsx", "content": "isi lengkap file yang sudah diperbaiki" }
+  ]
+}`;
+
+            const solution = await callLLM(solvePrompt, geminiKey, groqKey);
+            if (!Array.isArray(solution.files) || solution.files.length === 0) {
+              throw new Error('Agen tidak menghasilkan perubahan file yang valid.');
+            }
+
+            const modifiedFiles: string[] = [];
+            for (const f of solution.files) {
+              if (!f.filePath || !f.content) continue;
+              const fullPath = path.resolve(f.filePath);
+              if (!fullPath.startsWith(process.cwd()) || f.filePath.includes('.env')) {
+                throw new Error(`Akses file ditolak: ${f.filePath}`);
+              }
+              fs.writeFileSync(fullPath, f.content, 'utf-8');
+              modifiedFiles.push(f.filePath);
+            }
+
+            // Validasi QA oleh Jehan: jalankan npm run build
+            laporan[agentKey] = { ...laporan[agentKey], ringkasan: `🔍 Jehan memvalidasi build & test...` };
+            fs.writeFileSync(laporanPath, JSON.stringify(laporan, null, 2));
+
+            try {
+              execSync('npm run build', { stdio: 'pipe' });
+            } catch (buildErr: any) {
+              // Rollback jika gagal build!
+              execSync(`git checkout -- ${modifiedFiles.join(' ')}`, { stdio: 'pipe' });
+              throw new Error('Gagal lolos npm run build, perubahan otomatis dibatalkan demi keamanan.');
+            }
+
+            // Git add, commit, & push ke GitHub
+            const safeMsg = (solution.commitMessage || `fix: solved by ${agentName}`).replace(/"/g, "'");
+            execSync(`git add ${modifiedFiles.join(' ')}`, { stdio: 'pipe' });
+            execSync(`git commit -m "${safeMsg}"`, { stdio: 'pipe' });
+            execSync('git push', { stdio: 'pipe' });
+
+            // Bersihkan warning/menunggu karena sudah selesai di-push!
+            laporan[agentKey] = {
+              ringkasan: `✅ Solved & Pushed: ${solution.penjelasan}`,
+              angka: [{ label: 'File Diubah', nilai: `${modifiedFiles.length} file` }],
+            };
+            fs.writeFileSync(laporanPath, JSON.stringify(laporan, null, 2));
+
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ ok: true, files: modifiedFiles, message: solution.penjelasan }));
           } catch (err: any) {
             res.statusCode = 500;
             res.setHeader('Content-Type', 'application/json');

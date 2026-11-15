@@ -18,6 +18,7 @@ export default function App() {
   const [open, setOpen] = useState<DeskState | null>(null);
   const [cmd, setCmd] = useState('');
   const [busy, setBusy] = useState(false);
+  const [solving, setSolving] = useState(false);
   const [cmdErr, setCmdErr] = useState<string | null>(null);
   const [showFullReport, setShowFullReport] = useState(false);
 
@@ -84,6 +85,31 @@ export default function App() {
       setCmdErr(err.message);
     } finally {
       setBusy(false);
+    }
+  };
+
+  const eksekusiSolve = async (d: DeskState) => {
+    if (solving) return;
+    setSolving(true);
+    setCmdErr(null);
+    try {
+      const masalah = [d.bubble, ...d.urgent, ...d.waiting].filter(Boolean).join(' | ');
+      const res = await fetch('/api/auto-solve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agentKey: d.desk.key,
+          agentName: d.agen.nama,
+          problemSummary: masalah,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || 'Gagal melakukan auto-solve');
+      setOpen(null);
+    } catch (err: any) {
+      setCmdErr(err.message);
+    } finally {
+      setSolving(false);
     }
   };
 
@@ -189,7 +215,6 @@ export default function App() {
         )}
       </aside>
 
-      {/* COMMAND BAR INTERAKTIF DI LAYAR KANTOR */}
       {!p.rec && (
         <form
           onSubmit={kirimPerintah}
@@ -283,7 +308,6 @@ export default function App() {
         </nav>
       )}
 
-      {/* MODAL DETAIL PER AGEN (KLIK NAMA AGEN DI KANTOR 3D) */}
       {open && (
         <div className="ko-sheet" role="dialog" aria-label={open.agen.nama} onClick={() => setOpen(null)}>
           <div className="ko-sheet-in" style={{ maxWidth: 640, maxHeight: '82vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
@@ -308,14 +332,33 @@ export default function App() {
                 <div style={{ marginTop: 6 }}>{detailMap[open.desk.key]}</div>
               </div>
             )}
-            <button type="button" style={{ marginTop: 12 }} onClick={() => setOpen(null)}>
-              Tutup
-            </button>
+            <div style={{ marginTop: 14, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {(open.waiting.length > 0 || open.urgent.length > 0) && (
+                <button
+                  type="button"
+                  disabled={solving}
+                  onClick={() => eksekusiSolve(open)}
+                  style={{
+                    background: solving ? '#555' : '#2a9d8f',
+                    color: '#fff',
+                    border: 'none',
+                    padding: '8px 14px',
+                    borderRadius: 8,
+                    fontWeight: 600,
+                    cursor: solving ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {solving ? '🛠️ Sedang Coding, Build & Push...' : '⚡ Solve Otomatis & Push ke GitHub'}
+                </button>
+              )}
+              <button type="button" onClick={() => setOpen(null)}>
+                Tutup
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* MODAL REKAP LAPORAN SEMUA AGEN */}
       {showFullReport && (
         <div className="ko-sheet" role="dialog" aria-label="Laporan Lengkap Tim" onClick={() => setShowFullReport(false)}>
           <div className="ko-sheet-in" style={{ maxWidth: 760, maxHeight: '85vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
