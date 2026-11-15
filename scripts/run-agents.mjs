@@ -11,22 +11,27 @@ if (fs.existsSync(envPath)) {
   }
 }
 
-const API_KEY = process.env.GEMINI_API_KEY;
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN; // Opsional (wajib kalau repo private)
+const GEMINI_KEY = process.env.GEMINI_API_KEY;
+const GROQ_KEY = process.env.GROQ_API_KEY;
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 
-if (!API_KEY) {
-  console.error('❌ GEMINI_API_KEY belum diisi di file .env!');
+if (!GEMINI_KEY && !GROQ_KEY) {
+  console.error('❌ Isi GEMINI_API_KEY (Free Tier AI Studio) atau GROQ_API_KEY di file .env!');
   process.exit(1);
 }
 
 const rawInput = process.argv.slice(2).join(' ');
 if (!rawInput) {
   console.error('❌ Masukkan perintah atau URL GitHub!');
-  console.error('   Contoh: npm run agent -- "https://github.com/aminulloh18/kantor-ai-template"');
   process.exit(1);
 }
 
-// 2. Fungsi Penyedot Kode dari GitHub API
+// Helper untuk update src/laporan.json secara LIVE tiap agen bekerja
+const laporanPath = path.resolve('src/laporan.json');
+function saveLiveLaporan(data) {
+  fs.writeFileSync(laporanPath, JSON.stringify(data, null, 2), 'utf-8');
+}
+
 async function fetchGithubContext(input) {
   const match = input.match(/github\.com\/([^\/\s]+)\/([^\/\s#?]+)/);
   if (!match) return null;
@@ -41,28 +46,18 @@ async function fetchGithubContext(input) {
     ...(GITHUB_TOKEN ? { 'Authorization': `Bearer ${GITHUB_TOKEN}` } : {}),
   };
 
-  // Ambil metadata repo (default branch)
   const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
-  if (!repoRes.ok) {
-    throw new Error(`Gagal akses repo GitHub (${repoRes.status}). Jika repo private, tambahkan GITHUB_TOKEN di .env`);
-  }
+  if (!repoRes.ok) throw new Error(`Gagal akses repo GitHub (${repoRes.status})`);
   const repoInfo = await repoRes.json();
   const branch = repoInfo.default_branch || 'main';
 
-  // Ambil struktur tree file
   const treeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`, { headers });
   const treeData = await treeRes.json();
-  const allFiles = (treeData.tree || [])
-    .filter((item) => item.type === 'blob')
-    .map((item) => item.path);
+  const allFiles = (treeData.tree || []).filter((item) => item.type === 'blob').map((item) => item.path);
 
-  // Filter file kode penting (hindari lockfile, gambar, node_modules)
   const targetExtensions = /\.(ts|tsx|js|jsx|py|json|md|html|css)$/i;
   const ignoreFiles = /(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|\.min\.js)/i;
-
-  const selectedFiles = allFiles
-    .filter((f) => targetExtensions.test(f) && !ignoreFiles.test(f))
-    .slice(0, 12); // Ambil maksimal 12 file utama agar hemat token & cepat
+  const selectedFiles = allFiles.filter((f) => targetExtensions.test(f) && !ignoreFiles.test(f)).slice(0, 12);
 
   console.log(`📂 Ditemukan ${allFiles.length} file. Membaca ${selectedFiles.length} file utama...`);
 
@@ -74,55 +69,41 @@ async function fetchGithubContext(input) {
     const fileRes = await fetch(rawUrl, { headers });
     if (fileRes.ok) {
       const content = await fileRes.text();
-      // Batasi per file maks 4000 karakter biar context tetap tajam
       codeBundle += `\n--- FILE: ${filePath} ---\n${content.slice(0, 4000)}\n`;
     }
   }
-
   return { owner, repo, codeBundle };
 }
 
 const AGENTS = [
-  {
-    key: 'raka',
-    nama: 'Yafizhan',
-    role: 'Lead Developer',
-    fokus: 'Arsitektur keseluruhan, struktur folder, modularitas kode, dan tech debt.',
-  },
-  {
-    key: 'sekar',
-    nama: 'Fathiyyan',
-    role: 'Frontend Developer',
-    fokus: 'Kualitas komponen UI, logic frontend, state management, dan rekomendasi refactor kode.',
-  },
-  {
-    key: 'gilang',
-    nama: 'Jehan',
-    role: 'QA & Security',
-    fokus: 'Celah keamanan (API key bocor, XSS, validasi), potensi runtime error, dan edge-case bug.',
-  },
-  {
-    key: 'riska',
-    nama: 'Navisha',
-    role: 'Database & Cost Analyst',
-    fokus: 'Skema data/JSON, efisiensi pemanggilan API/token, dan performa beban resource.',
-  },
-  {
-    key: 'esok',
-    nama: 'Yasmin',
-    role: 'AI Researcher',
-    fokus: 'Peluang integrasi AI, kualitas prompt/agentic logic, dan peningkatan kecerdasan fitur.',
-  },
-  {
-    key: 'lita',
-    nama: 'Inara',
-    role: 'Product Designer',
-    fokus: 'Kejelasan dokumentasi (README), alur pengguna (UX), dan konsistensi tampilan.',
-  },
+  { key: 'raka', nama: 'Yafizhan', role: 'Lead Developer', fokus: 'Arsitektur keseluruhan, struktur folder, modularitas kode, dan tech debt.' },
+  { key: 'sekar', nama: 'Fathiyyan', role: 'Frontend Developer', fokus: 'Kualitas komponen UI, logic frontend, state management, dan rekomendasi refactor kode.' },
+  { key: 'gilang', nama: 'Jehan', role: 'QA & Security', fokus: 'Celah keamanan (API key bocor, XSS, validasi), potensi runtime error, dan edge-case bug.' },
+  { key: 'riska', nama: 'Navisha', role: 'Database & Cost Analyst', fokus: 'Skema data/JSON, efisiensi pemanggilan API/token, dan performa beban resource.' },
+  { key: 'esok', nama: 'Yasmin', role: 'AI Researcher', fokus: 'Peluang integrasi AI, kualitas prompt/agentic logic, dan peningkatan kecerdasan fitur.' },
+  { key: 'lita', nama: 'Inara', role: 'Product Designer', fokus: 'Kejelasan dokumentasi (README), alur pengguna (UX), dan konsistensi tampilan.' },
 ];
 
-async function callGemini(prompt) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+async function callLLM(prompt) {
+  if (GROQ_KEY) {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${GROQ_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'user', content: prompt }],
+        response_format: { type: 'json_object' },
+      }),
+    });
+    if (!res.ok) throw new Error(`Groq API Error (${res.status}): ${await res.text()}`);
+    const data = await res.json();
+    return JSON.parse(data.choices?.[0]?.message?.content || '{}');
+  }
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -131,15 +112,9 @@ async function callGemini(prompt) {
       generationConfig: { responseMimeType: 'application/json' },
     }),
   });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Gemini API Error (${res.status}): ${err}`);
-  }
-
+  if (!res.ok) throw new Error(`Gemini API Error (${res.status}): ${await res.text()}`);
   const data = await res.json();
-  const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-  return JSON.parse(rawText);
+  return JSON.parse(data.candidates?.[0]?.content?.parts?.[0]?.text || '{}');
 }
 
 async function runLabSprint() {
@@ -152,16 +127,25 @@ async function runLabSprint() {
   }
 
   const mode = githubData ? `AUDIT REPO GITHUB (${githubData.owner}/${githubData.repo})` : 'SPRINT FITUR BARU';
-  console.log(`\n🚀 YAFIZHAN AI LAB [${mode}]`);
-  console.log(`📝 Instruksi: "${rawInput}"\n`);
+  console.log(`\n🚀 YAFIZHAN AI LAB [${mode}] (Provider: ${GROQ_KEY ? 'Groq Llama-3.3' : 'Gemini 2.5 Flash'})`);
 
-  const laporanBaru = {};
-  const logLengkap = [
-    `# Laporan ${mode}\nInstruksi: ${rawInput}\nWaktu: ${new Date().toLocaleString('id-ID')}\n`,
-  ];
+  // Set status awal semua agen ke "Menunggu antrian sprint..." secara LIVE
+  const laporanLive = {};
+  for (const a of AGENTS) {
+    laporanLive[a.key] = { ringkasan: 'Menunggu giliran analisis sprint...' };
+  }
+  saveLiveLaporan(laporanLive);
+
+  const logLengkap = [`# Laporan ${mode}\nInstruksi: ${rawInput}\nWaktu: ${new Date().toLocaleString('id-ID')}\n`];
 
   for (const agen of AGENTS) {
-    process.stdout.write(`🤖 ${agen.nama} (${agen.role}) sedang menganalisis... `);
+    process.stdout.write(`🤖 ${agen.nama} (${agen.role}) sedang bekerja... `);
+
+    // Update gelembung kepala di kantor 3D saat agen ini sedang berpikir!
+    laporanLive[agen.key] = {
+      ringkasan: `⏳ Sedang menganalisis ${githubData ? githubData.repo : 'instruksi'}...`,
+    };
+    saveLiveLaporan(laporanLive);
 
     const konteksKode = githubData
       ? `\nBerikut adalah kode asli dari repository GitHub yang harus kamu audit:\n${githubData.codeBundle}`
@@ -170,11 +154,10 @@ async function runLabSprint() {
     const promptAgen = `
 Kamu adalah ${agen.nama}, ${agen.role} di YAFIZHAN AI LAB.
 Fokus audit & keahlianmu: ${agen.fokus}
-
 Instruksi user: "${rawInput}"
 ${konteksKode}
 
-Tugasmu: Analisis kode/instruksi di atas secara spesifik berdasarkan nama file & baris kode yang ada (jangan mengarang file yang tidak ada), lalu kembalikan HANYA JSON valid dengan format persis berikut:
+Tugasmu: Analisis kode/instruksi di atas secara spesifik berdasarkan nama file & baris kode yang ada, lalu kembalikan HANYA JSON valid dengan format persis berikut:
 {
   "ringkasan": "1 kalimat singkat padat (< 90 karakter) temuan utamamu untuk gelembung status di kantor 3D",
   "menunggu": ["1 rekomendasi perubahan yang butuh persetujuan user (kosongkan array [] jika tidak ada)"],
@@ -186,31 +169,31 @@ Aturan: Jangan cantumkan nominal uang/rupiah/dolar. Gunakan Bahasa Indonesia tek
 `;
 
     try {
-      const hasil = await callGemini(promptAgen);
-      laporanBaru[agen.key] = {
+      const hasil = await callLLM(promptAgen);
+      laporanLive[agen.key] = {
         ringkasan: hasil.ringkasan,
         ...(hasil.menunggu?.length ? { menunggu: hasil.menunggu } : {}),
         ...(hasil.mendesak?.length ? { mendesak: hasil.mendesak } : {}),
         ...(hasil.angka?.length ? { angka: hasil.angka } : {}),
       };
+      // Langsung update kantor 3D detik itu juga!
+      saveLiveLaporan(laporanLive);
 
       logLengkap.push(`## ${agen.nama} (${agen.role})\n**Ringkasan:** ${hasil.ringkasan}\n\n${hasil.detailTeknis}\n---\n`);
       console.log('✅ Selesai');
     } catch (e) {
+      laporanLive[agen.key] = { ringkasan: '❌ Gagal terhubung ke API LLM.' };
+      saveLiveLaporan(laporanLive);
       console.log('❌ Gagal:', e.message);
     }
   }
 
-  // Update Kantor 3D
-  fs.writeFileSync(path.resolve('src/laporan.json'), JSON.stringify(laporanBaru, null, 2), 'utf-8');
-
-  // Simpan laporan audit lengkap
   const outDir = path.resolve('output-sprint');
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir);
   const fileName = githubData ? `audit-${githubData.repo}.md` : 'latest-sprint.md';
   fs.writeFileSync(path.join(outDir, fileName), logLengkap.join('\n'), 'utf-8');
 
-  console.log('\n🎉 Audit selesai! Lihat gelembung status & Mission Board di http://localhost:5173');
+  console.log('\n🎉 Audit selesai! Lihat hasil live di http://localhost:5173');
   console.log(`📄 Laporan audit lengkap tersimpan di: output-sprint/${fileName}\n`);
 }
 

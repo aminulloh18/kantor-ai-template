@@ -130,6 +130,7 @@ export const JADWAL: { agen: string[] | '*'; mulai: string; menit: number; hari:
   { agen: ['esok', 'lita'], mulai: '08:18', menit: 30, hari: [1, 2, 3, 4, 5], aktivitas: 'kerja', label: 'riset model AI & desain UX…' },
   { agen: '*', mulai: '15:42', menit: 25, hari: [1, 2, 3, 4, 5], aktivitas: 'laporan', label: 'menulis laporan sprint harian…' },
   { agen: '*', mulai: '20:00', menit: 120, hari: [1, 2, 3, 4, 5, 6, 7], aktivitas: 'belajar', label: 'eksplorasi paper & benchmark AI…' },
+  { agen: '*', mulai: '09:00', menit: 240, hari: [1, 2, 3, 4, 5, 6, 7], aktivitas: 'kerja', label: 'audit repo & coding sprint…' },
 ];
 
 /** Jam kantor: di luar jadwal, agen "siap menerima perintah" (atau ngopi, lihat papan, ngobrol). */

@@ -1,59 +1,20 @@
 {
   "raka": {
-    "ringkasan": "Arsitektur multi-agent orchestrator selesai dirancang; 3 modul siap dieksekusi.",
-    "menunggu": [
-      "Setujui skema routing JSON antar-agen (v1.2)"
-    ],
-    "angka": [
-      {
-        "label": "Sprint aktif",
-        "nilai": "3 modul"
-      }
-    ]
+    "ringkasan": "❌ Gagal terhubung ke API LLM."
   },
   "sekar": {
-    "ringkasan": "Komponen UI Mission Board dan panel chat agen sudah terintegrasi.",
-    "menunggu": [
-      "Merge branch feat/agent-chat-ui ke main?"
-    ],
-    "angka": [
-      {
-        "label": "PR siap review",
-        "nilai": "4 PR"
-      }
-    ]
+    "ringkasan": "❌ Gagal terhubung ke API LLM."
   },
   "gilang": {
-    "ringkasan": "Ditemukan potensi kebocoran API key di client bundle; patch disiapkan.",
-    "mendesak": [
-      "Pindahkan pemanggilan LLM API ke server/proxy sebelum deploy!"
-    ]
+    "ringkasan": "❌ Gagal terhubung ke API LLM."
   },
   "riska": {
-    "ringkasan": "Pemakaian token hari ini efisien; skema JSON laporan sudah tervalidasi.",
-    "menunggu": [
-      "Setujui batas kuota harian 500k token"
-    ],
-    "angka": [
-      {
-        "label": "Token terpakai",
-        "nilai": "42.8k"
-      }
-    ]
+    "ringkasan": "❌ Gagal terhubung ke API LLM."
   },
   "esok": {
-    "ringkasan": "Benchmark Gemini 2.5 Flash vs Pro selesai untuk tugas routing & coding.",
-    "menunggu": [
-      "Pilih model default untuk Yafizhan & Fathiyyan"
-    ]
+    "ringkasan": "❌ Gagal terhubung ke API LLM."
   },
   "lita": {
-    "ringkasan": "Wireframe panel perintah user dan indikator status agen selesai.",
-    "angka": [
-      {
-        "label": "Komponen UI",
-        "nilai": "6 layar"
-      }
-    ]
+    "ringkasan": "❌ Gagal terhubung ke API LLM."
   }
 }
