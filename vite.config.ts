@@ -42,7 +42,7 @@ async function fetchGithubContext(input: string, token?: string) {
   if (!match) return null;
 
   const owner = match[1];
-  const repo = match[2].replace(/\.git$/, '');
+  const repo = match[2].replace(/\.git\$/, '');
   const headers: Record<string, string> = {
     Accept: 'application/vnd.github.v3+json',
     'User-Agent': 'Yafizhan-AI-Lab',
@@ -58,9 +58,8 @@ async function fetchGithubContext(input: string, token?: string) {
   const treeData = await treeRes.json();
   const allFiles: string[] = (treeData.tree || []).filter((i: any) => i.type === 'blob').map((i: any) => i.path);
 
-  // Rampingkan jadi 6 file utama agar tidak kena timeout / fetch failed
   const selectedFiles = allFiles
-    .filter((f) => /\.(ts|tsx|js|jsx|py|json|md)$/i.test(f) && !/(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|\.min\.js)/i.test(f))
+    .filter((f) => /\.(ts|tsx|js|jsx|py|json|md)\$/i.test(f) && !/(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|\.min\.js)/i.test(f))
     .slice(0, 6);
 
   let codeBundle = `REPO: ${owner}/${repo} (${repoInfo.description || '-'})\nSTRUKTUR FILE:\n${allFiles.slice(0, 40).join('\n')}\n\nISI KODE:\n`;
@@ -75,23 +74,36 @@ async function fetchGithubContext(input: string, token?: string) {
 }
 
 async function callLLM(prompt: string, geminiKey?: string, groqKey?: string) {
-  // Prioritaskan Groq jika GROQ_API_KEY tersedia (cepat & bebas 503)
   if (groqKey) {
+    const modelsRes = await fetch('https://api.groq.com/openai/v1/models', {
+      headers: { Authorization: `Bearer ${groqKey}` },
+    });
+    const modelsData = modelsRes.ok ? await modelsRes.json() : { data: [] };
+    const availableIds: string[] = (modelsData.data || []).map((m: any) => m.id);
+
+    const preferred = ['openai/gpt-oss-120b', 'qwen/qwen3-32b', 'llama-3.3-70b-specdec', 'llama-3.1-8b-instant'];
+    const chosenModel =
+      preferred.find((id) => availableIds.includes(id)) ||
+      availableIds.find((id) => !id.includes('whisper') && !id.includes('guard')) ||
+      'llama-3.1-8b-instant';
+
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${groqKey}` },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: chosenModel,
         messages: [{ role: 'user', content: prompt }],
         response_format: { type: 'json_object' },
       }),
     });
-    if (!res.ok) throw new Error(`Groq Error (${res.status})`);
+    if (!res.ok) {
+      const errTxt = await res.text();
+      throw new Error(`Groq Error (${res.status}): ${errTxt}`);
+    }
     const data = await res.json();
     return JSON.parse(data.choices?.[0]?.message?.content || '{}');
   }
 
-  // Jalur Gemini dengan retry & fallback model
   const models = ['gemini-3.8-flash', 'gemini-3.8-flash-lite', 'gemini-2.5-flash-lite'];
   for (const model of models) {
     for (let attempt = 1; attempt <= 3; attempt++) {
@@ -124,7 +136,7 @@ async function callLLM(prompt: string, geminiKey?: string, groqKey?: string) {
       }
     }
   }
-  throw new Error('Server Gemini sedang padat (503). Pasang GROQ_API_KEY di .env atau coba lagi sebentar.');
+  throw new Error('Server LLM sedang padat (503). Coba lagi beberapa detik.');
 }
 
 function getLocalProjectContext() {
@@ -140,6 +152,8 @@ function getLocalProjectContext() {
 }
 
 function agentLabPlugin(): Plugin {
+  let sprintCancelled = false;
+
   return {
     name: 'yafizhan-ai-lab-api',
     configureServer(server) {
@@ -147,6 +161,8 @@ function agentLabPlugin(): Plugin {
       server.middlewares.use('/api/run-sprint', async (req, res) => {
         if (req.method !== 'POST') return ((res.statusCode = 405), res.end('Method Not Allowed'));
         loadEnvLocal();
+        sprintCancelled = false;
+
         let body = '';
         req.on('data', (c) => (body += c));
         req.on('end', async () => {
@@ -167,6 +183,8 @@ function agentLabPlugin(): Plugin {
             fs.writeFileSync(laporanPath, JSON.stringify(laporanLive, null, 2));
 
             for (const agen of AGENTS) {
+              if (sprintCancelled) break;
+
               laporanLive[agen.key] = { ringkasan: `⏳ Sedang menganalisis...` };
               fs.writeFileSync(laporanPath, JSON.stringify(laporanLive, null, 2));
 
@@ -187,6 +205,8 @@ Kembalikan HANYA JSON valid:
 }`;
               try {
                 const hasil = await callLLM(promptAgen, geminiKey, groqKey);
+                if (sprintCancelled) break;
+
                 laporanLive[agen.key] = {
                   ringkasan: hasil.ringkasan,
                   ...(hasil.menunggu?.length ? { menunggu: hasil.menunggu } : {}),
@@ -195,26 +215,30 @@ Kembalikan HANYA JSON valid:
                 };
                 detailLive[agen.key] = hasil.detailTeknis || hasil.ringkasan;
               } catch (err: any) {
+                if (sprintCancelled) break;
                 laporanLive[agen.key] = { ringkasan: `❌ ${err.message}` };
                 detailLive[agen.key] = err.message;
               }
-              fs.writeFileSync(laporanPath, JSON.stringify(laporanLive, null, 2));
-              fs.writeFileSync(detailPath, JSON.stringify(detailLive, null, 2));
 
-              // Jeda 1.5 detik antar agen agar koneksi tetap stabil
-              await new Promise((r) => setTimeout(r, 1500));
+              if (!sprintCancelled) {
+                fs.writeFileSync(laporanPath, JSON.stringify(laporanLive, null, 2));
+                fs.writeFileSync(detailPath, JSON.stringify(detailLive, null, 2));
+                await new Promise((r) => setTimeout(r, 1500));
+              }
             }
 
-            appendLog({
-              waktu: new Date().toLocaleTimeString('id-ID'),
-              agen: 'Tim Yafizhan AI Lab',
-              aksi: 'AUDIT',
-              status: 'SUKSES',
-              ringkasan: `Selesai memproses: "${prompt}"`,
-            });
+            if (!sprintCancelled) {
+              appendLog({
+                waktu: new Date().toLocaleTimeString('id-ID'),
+                agen: 'Tim Yafizhan AI Lab',
+                aksi: 'AUDIT',
+                status: 'SUKSES',
+                ringkasan: `Selesai memproses: "${prompt}"`,
+              });
+            }
 
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ ok: true }));
+            res.end(JSON.stringify({ ok: true, cancelled: sprintCancelled }));
           } catch (err: any) {
             res.statusCode = 500;
             res.end(JSON.stringify({ ok: false, error: err.message }));
@@ -327,6 +351,16 @@ Kembalikan HANYA JSON valid dengan format:
             res.end(JSON.stringify({ ok: false, error: err.message }));
           }
         });
+      });
+
+      // 3. Endpoint Stop & Reset Kantor ke Kondisi Awal
+      server.middlewares.use('/api/reset-sprint', (req, res) => {
+        if (req.method !== 'POST') return ((res.statusCode = 405), res.end('Method Not Allowed'));
+        sprintCancelled = true;
+        fs.writeFileSync(path.resolve('src/laporan.json'), '{}', 'utf-8');
+        fs.writeFileSync(path.resolve('src/laporanDetail.json'), '{}', 'utf-8');
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ ok: true }));
       });
     },
   };

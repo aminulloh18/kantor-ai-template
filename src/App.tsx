@@ -90,6 +90,18 @@ export default function App() {
     }
   };
 
+  const resetTugas = async () => {
+    try {
+      await fetch('/api/reset-sprint', { method: 'POST' });
+      setBusy(false);
+      setSolving(false);
+      setOpen(null);
+      setCmdErr(null);
+    } catch (err: any) {
+      setCmdErr(err.message);
+    }
+  };
+
   const eksekusiSolve = async (d: DeskState) => {
     if (solving) return;
     setSolving(true);
@@ -242,7 +254,7 @@ export default function App() {
             padding: '8px 12px',
             borderRadius: 14,
             border: '1px solid rgba(255,255,255,0.14)',
-            width: 'min(620px, 92vw)',
+            width: 'min(680px, 94vw)',
             boxShadow: '0 8px 24px rgba(0,0,0,0.28)',
           }}
         >
@@ -276,6 +288,23 @@ export default function App() {
             }}
           >
             {busy ? 'Bekerja...' : 'Kirim Tugas'}
+          </button>
+          <button
+            type="button"
+            onClick={resetTugas}
+            title="Hentikan tugas aktif dan bersihkan misi ke kondisi awal"
+            style={{
+              background: 'rgba(255, 255, 255, 0.14)',
+              color: '#fff',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: 9,
+              padding: '6px 12px',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            🛑 Reset
           </button>
         </form>
       )}
@@ -389,60 +418,60 @@ export default function App() {
       )}
 
       {showLogs && (
-     <div
-       className="ko-sheet"
-       role="dialog"
-       aria-label="Log Aktivitas Agen"
-       onClick={() => setShowLogs(false)}
-       style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 16px 84px' }}
-     >
-       <div
-         className="ko-sheet-in"
-         style={{ maxWidth: 680, width: '100%', maxHeight: '78vh', overflowY: 'auto', margin: 0 }}
-         onClick={(e) => e.stopPropagation()}
-       >
-         <h3>📜 Riwayat Eksekusi & Build Log</h3>
-         {(laporanLogs as any[]).length === 0 ? (
-           <p style={{ fontSize: 13, opacity: 0.7 }}>Belum ada riwayat eksekusi. Coba beri perintah atau jalankan Auto-Solve.</p>
-         ) : (
-           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
-             {(laporanLogs as any[]).map((log, i) => (
-               <div key={i} style={{ padding: 10, borderRadius: 8, background: 'rgba(0,0,0,0.06)', fontSize: 12.5 }}>
-                 <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
-                   <span>
-                     {log.status === 'SUKSES' ? '✅' : '❌'} [{log.aksi}] {log.agen}
-                   </span>
-                   <small style={{ opacity: 0.7 }}>{log.waktu}</small>
-                 </div>
-                 <p style={{ margin: '4px 0' }}>{log.ringkasan}</p>
-                 {log.files?.length > 0 && (
-                   <div style={{ fontSize: 11.5, opacity: 0.85 }}>
-                     📁 File: <code>{log.files.join(', ')}</code>
-                     {log.commitHash && (
-                       <>
-                         {' · '}
-                         <a
-                           href={`https://github.com/aminulloh18/kantor-ai-template/commit/${log.commitHash}`}
-                           target="_blank"
-                           rel="noreferrer"
-                           style={{ color: '#3a86ff', fontWeight: 600 }}
-                         >
-                           Commit #{log.commitHash} ↗
-                         </a>
-                       </>
-                     )}
-                   </div>
-                 )}
-               </div>
-             ))}
-           </div>
-         )}
-         <button type="button" style={{ marginTop: 14 }} onClick={() => setShowLogs(false)}>
-           Tutup Log
-         </button>
-       </div>
-     </div>
-   )}
+        <div
+          className="ko-sheet"
+          role="dialog"
+          aria-label="Log Aktivitas Agen"
+          onClick={() => setShowLogs(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 16px 84px' }}
+        >
+          <div
+            className="ko-sheet-in"
+            style={{ maxWidth: 680, width: '100%', maxHeight: '78vh', overflowY: 'auto', margin: 0 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3>📜 Riwayat Eksekusi & Build Log</h3>
+            {(laporanLogs as any[]).length === 0 ? (
+              <p style={{ fontSize: 13, opacity: 0.7 }}>Belum ada riwayat eksekusi. Coba beri perintah atau jalankan Auto-Solve.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
+                {(laporanLogs as any[]).map((log, i) => (
+                  <div key={i} style={{ padding: 10, borderRadius: 8, background: 'rgba(0,0,0,0.06)', fontSize: 12.5 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
+                      <span>
+                        {log.status === 'SUKSES' ? '✅' : '❌'} [{log.aksi}] {log.agen}
+                      </span>
+                      <small style={{ opacity: 0.7 }}>{log.waktu}</small>
+                    </div>
+                    <p style={{ margin: '4px 0' }}>{log.ringkasan}</p>
+                    {log.files?.length > 0 && (
+                      <div style={{ fontSize: 11.5, opacity: 0.85 }}>
+                        📁 File: <code>{log.files.join(', ')}</code>
+                        {log.commitHash && (
+                          <>
+                            {' · '}
+                            <a
+                              href={`https://github.com/aminulloh18/kantor-ai-template/commit/${log.commitHash}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ color: '#3a86ff', fontWeight: 600 }}
+                            >
+                              Commit #{log.commitHash} ↗
+                            </a>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            <button type="button" style={{ marginTop: 14 }} onClick={() => setShowLogs(false)}>
+              Tutup Log
+            </button>
+          </div>
+        </div>
+      )}
 
       {showFullReport && (
         <div
