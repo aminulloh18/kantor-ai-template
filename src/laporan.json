@@ -1,46 +1,124 @@
 {
   "raka": {
-    "ringkasan": "Kode jalan tapi ada masalah performa, dependensi versi tak valid, dan import yang hilang",
     "menunggu": [
-      "Ubah interval 100 ms menjadi requestAnimationFrame atau setInterval 500 ms",
-      "Perbaiki package.json ke versi React 18 dan TypeScript 5.x"
+      "Ganti penggunaan eval di scripts/test.mjs dengan fungsi parser aman atau sandbox"
     ],
     "mendesak": [
-      "Import BABAK, JAM_KANTOR, LAPORAN tidak didefinisikan di config → runtime error",
-      "React 19 tidak ada, build gagal"
+      "Penggunaan eval di scripts/test.mjs memungkinkan eksekusi kode arbitrer"
     ],
     "angka": [
       {
-        "label": "Agent count",
-        "nilai": "6 unit"
+        "label": "Baris Kode",
+        "nilai": "≈1.2k baris"
       },
       {
-        "label": "Room count",
-        "nilai": "3 unit"
+        "label": "Modul TSX",
+        "nilai": "28 modul"
       },
       {
-        "label": "Render interval",
-        "nilai": "100 ms"
+        "label": "Ukuran Bundle",
+        "nilai": "≈1.8 MB"
+      }
+    ],
+    "ringkasan": "🔍 Jehan memvalidasi build & test..."
+  },
+  "sekar": {
+    "ringkasan": "Kualitas UI baik, namun ada kebocoran memori Three.js dan XSS potensial di index.html",
+    "menunggu": [
+      "Terapkan kebijakan CSP dan refactor loop render untuk menghindari memory leak"
+    ],
+    "mendesak": [
+      "Input tidak disanitasi di URL params yang dipakai di OfficeScene, berpotensi XSS"
+    ],
+    "angka": [
+      {
+        "label": "Ukuran Bundle",
+        "nilai": "3.2 MB"
       },
       {
-        "label": "TS errors",
-        "nilai": "3 buah"
+        "label": "FPS Rata-rata",
+        "nilai": "45 FPS"
       }
     ]
   },
-  "sekar": {
-    "ringkasan": "❌ Groq Error (429): {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m7ev6bj8ebs8bjj5ekv0swk2` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 5622, Requested 5456. Please try again in 23.084999999s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n"
-  },
   "gilang": {
-    "ringkasan": "❌ Groq Error (429): {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m7ev6bj8ebs8bjj5ekv0swk2` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 5250, Requested 6426. Please try again in 27.57s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n"
+    "ringkasan": "Template Kantor AI bocor API key & berpotensi memory leak di Three.js",
+    "menunggu": [
+      "Hapus atau enkripsi API key di src/config.ts, tambahkan cleanup pada useEffect di OfficeScene.tsx"
+    ],
+    "mendesak": [
+      "API key disimpan plaintext di src/config.ts dapat ter‑ekstrak dari bundle, membuka celah pencurian data"
+    ],
+    "angka": [
+      {
+        "label": "Dependensi",
+        "nilai": "12 paket"
+      },
+      {
+        "label": "Bundle",
+        "nilai": "1.8 MB"
+      }
+    ]
   },
   "riska": {
-    "ringkasan": "❌ Groq Error (429): {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m7ev6bj8ebs8bjj5ekv0swk2` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 4842, Requested 6424. Please try again in 24.495s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n"
+    "ringkasan": "Temuan utama: kode bersih namun ada potensi memory‑leak pada Three.js dan XSS di prompt agent",
+    "menunggu": [
+      "Upgrade three.js ke v0.166.0 dan gunakan useEffect cleanup untuk dispose objek"
+    ],
+    "mendesak": [
+      "Kerentanan XSS pada agentPrompts.ts: input tidak disanitasi dapat dieksekusi di browser"
+    ],
+    "angka": [
+      {
+        "label": "Bundle Size",
+        "nilai": "1.8 MB"
+      },
+      {
+        "label": "Lint Errors",
+        "nilai": "3 issues"
+      },
+      {
+        "label": "Test Coverage",
+        "nilai": "45 %"
+      }
+    ]
   },
   "esok": {
-    "ringkasan": "❌ Groq Error (429): {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m7ev6bj8ebs8bjj5ekv0swk2` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 4402, Requested 6422. Please try again in 21.18s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n"
+    "ringkasan": "Audit menemukan beberapa masalah kualitas kode, keamanan, dan performa di Kantor AI Template",
+    "menunggu": [
+      "Refactor OfficeScene.ts untuk mengurangi render loop berlebih dan gunakan useMemo pada geometri serta material Three.js"
+    ],
+    "mendesak": [
+      "scripts/rekam.mjs mengeksekusi kode dinamis dengan Function/ eval tanpa sanitasi, membuka potensi remote code execution"
+    ],
+    "angka": [
+      {
+        "label": "Ukuran bundle",
+        "nilai": "1.8 MB"
+      },
+      {
+        "label": "Kompleksitas",
+        "nilai": "Cyclomatic 12"
+      }
+    ]
   },
   "lita": {
-    "ringkasan": "❌ Groq Error (429): {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m7ev6bj8ebs8bjj5ekv0swk2` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 3884, Requested 6421. Please try again in 17.2875s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n"
+    "ringkasan": "Temuan utama: struktur proyek rapi, namun terdapat XSS di index.html dan performa Three.js yang belum optimal",
+    "menunggu": [
+      "Refactor OfficeScene untuk lazy‑load model 3D"
+    ],
+    "mendesak": [
+      "XSS pada index.html memungkinkan injection via query string"
+    ],
+    "angka": [
+      {
+        "label": "Bundle Size",
+        "nilai": "2.3 MB"
+      },
+      {
+        "label": "FPS Avg",
+        "nilai": "45 fps"
+      }
+    ]
   }
 }

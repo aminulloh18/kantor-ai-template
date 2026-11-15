@@ -18,6 +18,18 @@ function loadEnvLocal() {
   }
 }
 
+function ensureDataFiles() {
+  const defaults: Record<string, string> = {
+    'src/laporan.json': '{}',
+    'src/laporanDetail.json': '{}',
+    'src/laporanLogs.json': '[]',
+  };
+  for (const [rel, content] of Object.entries(defaults)) {
+    const full = path.resolve(rel);
+    if (!fs.existsSync(full)) fs.writeFileSync(full, content, 'utf-8');
+  }
+}
+
 const AGENTS = [
   { key: 'raka', nama: 'Yafizhan', role: 'Lead Developer', fokus: 'Arsitektur keseluruhan, struktur folder, modularitas kode, dan tech debt.' },
   { key: 'sekar', nama: 'Fathiyyan', role: 'Frontend Developer', fokus: 'Kualitas komponen UI, logic frontend, state management, dan rekomendasi refactor kode.' },
@@ -44,10 +56,10 @@ function appendLog(entry: {
 
 async function fetchGithubContext(input: string, token?: string) {
   const match = input.match(/github\.com\/([^\/\s"'`]+)\/([^\/\s#?"'`]+)/);
-if (!match) return null;
+  if (!match) return null;
 
-const owner = match[1];
-const repo = match[2].replace(/\.git$/, '').replace(/["'`.,)]+$/, '');
+  const owner = match[1];
+  const repo = match[2].replace(/\.git$/, '').replace(/["'`.,)]+$/, '');
   const headers: Record<string, string> = {
     Accept: 'application/vnd.github.v3+json',
     'User-Agent': 'Yafizhan-AI-Lab',
@@ -64,15 +76,15 @@ const repo = match[2].replace(/\.git$/, '').replace(/["'`.,)]+$/, '');
   const allFiles: string[] = (treeData.tree || []).filter((i: any) => i.type === 'blob').map((i: any) => i.path);
 
   const selectedFiles = allFiles
-    .filter((f) => /\.(ts|tsx|js|jsx|py|json|md)\$/i.test(f) && !/(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|\.min\.js)/i.test(f))
-    .slice(0, 6);
+    .filter((f) => /\.(ts|tsx|js|jsx|py|json|md|html)$/i.test(f) && !/(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|\.min\.js)/i.test(f))
+    .slice(0, 8);
 
-  let codeBundle = `REPO: ${owner}/${repo} (${repoInfo.description || '-'})\nSTRUKTUR FILE:\n${allFiles.slice(0, 40).join('\n')}\n\nISI KODE:\n`;
+  let codeBundle = `REPO: ${owner}/${repo} (${repoInfo.description || '-'})\nDAFTAR FILE ASLI DI REPO:\n${allFiles.slice(0, 50).join('\n')}\n\nISI KODE UTAMA:\n`;
   for (const filePath of selectedFiles) {
     const fileRes = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`, { headers });
     if (fileRes.ok) {
       const content = await fileRes.text();
-      codeBundle += `\n--- FILE: ${filePath} ---\n${content.slice(0, 2000)}\n`;
+      codeBundle += `\n--- FILE: ${filePath} ---\n${content.slice(0, 2200)}\n`;
     }
   }
   return { owner, repo, codeBundle };
@@ -86,6 +98,7 @@ async function callLLM(prompt: string, geminiKey?: string, groqKey?: string) {
     const modelsData = modelsRes.ok ? await modelsRes.json() : { data: [] };
     const availableIds: string[] = (modelsData.data || []).map((m: any) => m.id);
 
+    // Prioritaskan model reasoning/coding terbesar yang tersedia di akun Groq
     const preferred = ['openai/gpt-oss-120b', 'qwen/qwen3-32b', 'llama-3.3-70b-specdec', 'llama-3.1-8b-instant'];
     const chosenModel =
       preferred.find((id) => availableIds.includes(id)) ||
@@ -97,6 +110,7 @@ async function callLLM(prompt: string, geminiKey?: string, groqKey?: string) {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${groqKey}` },
       body: JSON.stringify({
         model: chosenModel,
+        temperature: 0.2,
         messages: [{ role: 'user', content: prompt }],
         response_format: { type: 'json_object' },
       }),
@@ -119,7 +133,7 @@ async function callLLM(prompt: string, geminiKey?: string, groqKey?: string) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: 'application/json' },
+            generationConfig: { responseMimeType: 'application/json', temperature: 0.2 },
           }),
         });
         if (res.ok) {
@@ -144,27 +158,31 @@ async function callLLM(prompt: string, geminiKey?: string, groqKey?: string) {
   throw new Error('Server LLM sedang padat (503). Coba lagi beberapa detik.');
 }
 
-function getLocalProjectContext() {
-  const targetFiles = ['src/App.tsx', 'src/config.ts', 'src/office.ts', 'src/agentPrompts.ts', 'package.json'];
-  let bundle = '';
+// Perbaikan #2: Sertakan OfficeScene.tsx & index.html pada audit lokal
+function getLocalAuditContext() {
+  const targetFiles = ['src/App.tsx', 'src/OfficeScene.tsx', 'src/config.ts', 'src/office.ts', 'src/agentPrompts.ts', 'index.html', 'package.json'];
+  let bundle = `DAFTAR FILE YANG TERSEDIA: ${targetFiles.join(', ')}\n`;
   for (const rel of targetFiles) {
     const full = path.resolve(rel);
     if (fs.existsSync(full)) {
-      bundle += `\n--- FILE LOKAL: ${rel} ---\n${fs.readFileSync(full, 'utf-8').slice(0, 3500)}\n`;
+      bundle += `\n--- FILE LOKAL: ${rel} ---\n${fs.readFileSync(full, 'utf-8').slice(0, 2500)}\n`;
     }
   }
   return bundle;
 }
-function ensureDataFiles() {
-  const defaults: Record<string, string> = {
-    'src/laporan.json': '{}',
-    'src/laporanDetail.json': '{}',
-    'src/laporanLogs.json': '[]',
-  };
-  for (const [rel, content] of Object.entries(defaults)) {
+
+// Perbaikan #3: Berikan isi UTUH file yang diizinkan untuk Auto-Solve agar tidak terpotong & lolos npm run build
+const EDITABLE_FILES = ['src/App.tsx', 'src/config.ts', 'src/office.ts', 'src/agentPrompts.ts', 'index.html'];
+
+function getFullEditableContext() {
+  let bundle = `DAFTAR FILE YANG BOLEH DIMODIFIKASI (ISI UTUH):\n`;
+  for (const rel of EDITABLE_FILES) {
     const full = path.resolve(rel);
-    if (!fs.existsSync(full)) fs.writeFileSync(full, content, 'utf-8');
+    if (fs.existsSync(full)) {
+      bundle += `\n=== FILE: ${rel} ===\n${fs.readFileSync(full, 'utf-8')}\n=== END OF ${rel} ===\n`;
+    }
   }
+  return bundle;
 }
 
 function agentLabPlugin(): Plugin {
@@ -173,10 +191,11 @@ function agentLabPlugin(): Plugin {
   return {
     name: 'yafizhan-ai-lab-api',
     configureServer(server) {
-      // 1. Endpoint Analisis & Audit
+      // 1. Endpoint Analisis & Audit (Anti-Halusinasi)
       server.middlewares.use('/api/run-sprint', async (req, res) => {
         if (req.method !== 'POST') return ((res.statusCode = 405), res.end('Method Not Allowed'));
         loadEnvLocal();
+        ensureDataFiles();
         sprintCancelled = false;
 
         let body = '';
@@ -204,20 +223,27 @@ function agentLabPlugin(): Plugin {
               laporanLive[agen.key] = { ringkasan: `⏳ Sedang menganalisis...` };
               fs.writeFileSync(laporanPath, JSON.stringify(laporanLive, null, 2));
 
-              const konteksKode = githubData ? `\nKode repo GitHub:\n${githubData.codeBundle}` : `\nKode lokal:\n${getLocalProjectContext()}`;
+              const konteksKode = githubData ? `\nKode repo GitHub:\n${githubData.codeBundle}` : `\nKode proyek lokal:\n${getLocalAuditContext()}`;
+
+              // Perbaikan #1: Strict Anti-Hallucination Grounding Rules
               const promptAgen = `
 Kamu adalah ${agen.nama}, ${agen.role} di YAFIZHAN AI LAB.
 Fokus keahlianmu: ${agen.fokus}
 Instruksi user: "${prompt}"
 ${konteksKode}
 
+ATURAN KETAT ANTI-HALUSINASI:
+1. HANYA bahas file, fungsi, variabel, dan dependency yang BENAR-BENAR TERTULIS di konteks kode di atas.
+2. DILARANG KERAS mengarang atau menebak nama library, file, atau fungsi yang tidak ada di konteks (jangan sebut eval, react-scripts, vm2, atau API_KEY hardcoded jika tidak tertulis di kode di atas).
+3. Jika kode sudah aman pada suatu aspek, nyatakan aman secara jujur dan berikan saran peningkatan nyata yang relevan dengan isi kode yang ada.
+
 Kembalikan HANYA JSON valid:
 {
-  "ringkasan": "1 kalimat singkat (< 85 karakter) temuan/hasil kerjamu",
-  "menunggu": ["1 keputusan/solusi yang siap dieksekusi (kosongkan [] jika tidak ada)"],
-  "mendesak": ["1 temuan bug fatal / celah keamanan serius (kosongkan [] jika aman)"],
+  "ringkasan": "1 kalimat singkat (< 85 karakter) temuan/hasil kerjamu yang faktual",
+  "menunggu": ["1 rekomendasi perbaikan nyata pada file yang ada (kosongkan [] jika tidak ada)"],
+  "mendesak": ["1 bug/risiko nyata yang terbukti ada di baris kode di atas (kosongkan [] jika aman)"],
   "angka": [{ "label": "Metrik (2 kata)", "nilai": "Angka + satuan" }],
-  "detailTeknis": "Hasil analisis lengkap & konkret dalam Bahasa Indonesia."
+  "detailTeknis": "Hasil analisis konkret berbasis fakta kode di atas dalam Bahasa Indonesia."
 }`;
               try {
                 const hasil = await callLLM(promptAgen, geminiKey, groqKey);
@@ -260,14 +286,16 @@ Kembalikan HANYA JSON valid:
             res.statusCode = 500;
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify({ ok: false, error: err?.message || String(err) }));
-            }
+          }
         });
       });
 
-      // 2. Endpoint Autonomous Solve + Build Check + Git Push
+      // 2. Endpoint Autonomous Solve + Build Check + Git Push (Full File Context)
       server.middlewares.use('/api/auto-solve', async (req, res) => {
         if (req.method !== 'POST') return ((res.statusCode = 405), res.end('Method Not Allowed'));
         loadEnvLocal();
+        ensureDataFiles();
+
         let body = '';
         req.on('data', (c) => (body += c));
         req.on('end', async () => {
@@ -287,14 +315,14 @@ Kamu adalah Fathiyyan (Frontend/Fullstack Dev) & Jehan (QA) membantu ${agentName
 Tugasmu: Selesaikan masalah berikut secara nyata pada kode proyek lokal ini:
 MASALAH: "${problemSummary}"
 
-Berikut adalah isi file kode lokal saat ini:
-${getLocalProjectContext()}
+Berikut adalah ISI LENGKAP file yang diizinkan untuk dimodifikasi:
+${getFullEditableContext()}
 
-Aturan ketat:
-1. Pilih HANYA file yang benar-benar relevan untuk diperbaiki (misal "src/App.tsx" atau "src/config.ts").
-2. Kembalikan ISI FILE LENGKAP yang sudah diperbaiki (jangan dipotong dengan "...").
-3. Pastikan tidak ada syntax error atau error TypeScript agar "npm run build" sukses.
-4. Dilarang menyentuh file .env atau menghapus fungsi inti yang sudah berjalan.
+ATURAN KETAT AUTO-SOLVE:
+1. Kamu HANYA BOLEH mengubah file yang ada dalam daftar ini: ${EDITABLE_FILES.join(', ')}. DILARANG menyentuh file di luar daftar tersebut.
+2. Kembalikan ISI FILE UTUH dari baris pertama sampai baris terakhir yang sudah diperbaiki (DILARANG menyingkat kode dengan "// ... kode lainnya").
+3. Pastikan semua import, tipe TypeScript, dan tag JSX valid sehingga perintah "npm run build" lulus 100% tanpa error.
+4. Pertahankan seluruh fungsi yang sudah berjalan normal.
 
 Kembalikan HANYA JSON valid dengan format:
 {
@@ -313,12 +341,17 @@ Kembalikan HANYA JSON valid dengan format:
             const modifiedFiles: string[] = [];
             for (const f of solution.files) {
               if (!f.filePath || !f.content) continue;
-              const fullPath = path.resolve(f.filePath);
-              if (!fullPath.startsWith(process.cwd()) || f.filePath.includes('.env')) {
-                throw new Error(`Akses file ditolak: ${f.filePath}`);
+              const normalized = f.filePath.replace(/\\/g, '/');
+              if (!EDITABLE_FILES.includes(normalized)) {
+                throw new Error(`File tidak termasuk daftar yang diizinkan: ${normalized}`);
               }
+              const fullPath = path.resolve(normalized);
               fs.writeFileSync(fullPath, f.content, 'utf-8');
-              modifiedFiles.push(f.filePath);
+              modifiedFiles.push(normalized);
+            }
+
+            if (modifiedFiles.length === 0) {
+              throw new Error('Tidak ada file valid yang ditulis.');
             }
 
             laporan[agentKey] = { ...laporan[agentKey], ringkasan: `🔍 Jehan memvalidasi build & test...` };
@@ -364,9 +397,10 @@ Kembalikan HANYA JSON valid dengan format:
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify({ ok: true, files: modifiedFiles, message: solution.penjelasan }));
           } catch (err: any) {
+            console.error('❌ [/api/auto-solve ERROR]:', err);
             res.statusCode = 500;
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ ok: false, error: err.message }));
+            res.end(JSON.stringify({ ok: false, error: err?.message || String(err) }));
           }
         });
       });
@@ -374,6 +408,7 @@ Kembalikan HANYA JSON valid dengan format:
       // 3. Endpoint Stop & Reset Kantor ke Kondisi Awal
       server.middlewares.use('/api/reset-sprint', (req, res) => {
         if (req.method !== 'POST') return ((res.statusCode = 405), res.end('Method Not Allowed'));
+        ensureDataFiles();
         sprintCancelled = true;
         fs.writeFileSync(path.resolve('src/laporan.json'), '{}', 'utf-8');
         fs.writeFileSync(path.resolve('src/laporanDetail.json'), '{}', 'utf-8');
