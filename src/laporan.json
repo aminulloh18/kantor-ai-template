@@ -1,124 +1,32 @@
 {
   "raka": {
+    "ringkasan": "Repo memiliki arsitektur modular yang jelas, namun ada risiko kompatibilitas versi dan skrip test yang dapat gagal.",
     "menunggu": [
-      "Ganti penggunaan eval di scripts/test.mjs dengan fungsi parser aman atau sandbox"
+      "Perbarui React ke versi stabil (v18) dan TypeScript ke versi yang didukung oleh Vite, sesuaikan tsconfig agar \"module\":\"ESNext\" cocok dengan \"type\":\"module\"."
     ],
     "mendesak": [
-      "Penggunaan eval di scripts/test.mjs memungkinkan eksekusi kode arbitrer"
+      "scripts/test.mjs dijalankan dengan node langsung sehingga mengimpor file TypeScript (.ts) tanpa proses transpile, menyebabkan runtime error saat dijalankan."
     ],
     "angka": [
       {
-        "label": "Baris Kode",
-        "nilai": "≈1.2k baris"
-      },
-      {
-        "label": "Modul TSX",
-        "nilai": "28 modul"
-      },
-      {
-        "label": "Ukuran Bundle",
-        "nilai": "≈1.8 MB"
+        "label": "Jumlah file",
+        "nilai": "30 file"
       }
-    ],
-    "ringkasan": "🔍 Jehan memvalidasi build & test..."
+    ]
   },
   "sekar": {
-    "ringkasan": "Kualitas UI baik, namun ada kebocoran memori Three.js dan XSS potensial di index.html",
-    "menunggu": [
-      "Terapkan kebijakan CSP dan refactor loop render untuk menghindari memory leak"
-    ],
-    "mendesak": [
-      "Input tidak disanitasi di URL params yang dipakai di OfficeScene, berpotensi XSS"
-    ],
-    "angka": [
-      {
-        "label": "Ukuran Bundle",
-        "nilai": "3.2 MB"
-      },
-      {
-        "label": "FPS Rata-rata",
-        "nilai": "45 FPS"
-      }
-    ]
+    "ringkasan": "❌ Groq Error (429): {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m7ev6bj8ebs8bjj5ekv0swk2` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 4166, Requested 4979. Please try again in 8.5875s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n"
   },
   "gilang": {
-    "ringkasan": "Template Kantor AI bocor API key & berpotensi memory leak di Three.js",
-    "menunggu": [
-      "Hapus atau enkripsi API key di src/config.ts, tambahkan cleanup pada useEffect di OfficeScene.tsx"
-    ],
-    "mendesak": [
-      "API key disimpan plaintext di src/config.ts dapat ter‑ekstrak dari bundle, membuka celah pencurian data"
-    ],
-    "angka": [
-      {
-        "label": "Dependensi",
-        "nilai": "12 paket"
-      },
-      {
-        "label": "Bundle",
-        "nilai": "1.8 MB"
-      }
-    ]
+    "ringkasan": "❌ Groq Error (429): {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m7ev6bj8ebs8bjj5ekv0swk2` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 3814, Requested 4982. Please try again in 5.97s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n"
   },
   "riska": {
-    "ringkasan": "Temuan utama: kode bersih namun ada potensi memory‑leak pada Three.js dan XSS di prompt agent",
-    "menunggu": [
-      "Upgrade three.js ke v0.166.0 dan gunakan useEffect cleanup untuk dispose objek"
-    ],
-    "mendesak": [
-      "Kerentanan XSS pada agentPrompts.ts: input tidak disanitasi dapat dieksekusi di browser"
-    ],
-    "angka": [
-      {
-        "label": "Bundle Size",
-        "nilai": "1.8 MB"
-      },
-      {
-        "label": "Lint Errors",
-        "nilai": "3 issues"
-      },
-      {
-        "label": "Test Coverage",
-        "nilai": "45 %"
-      }
-    ]
+    "ringkasan": "❌ Groq Error (400): {\"error\":{\"message\":\"Failed to generate JSON. Please adjust your prompt. See 'failed_generation' for more details.\",\"type\":\"invalid_request_error\",\"code\":\"json_validate_failed\",\"failed_generation\":\"{\\n  \\\"ringkasan\\\":\\\"Audit menemukan potensi ketidaksesuaian versi paket dan konflik lisensi, serta kurangnya hardening pada dependensi eksternal.\\\",\\n  \\\"menunggu\\\":[\\\"Perbarui `package.json` ke versi stabil React/TypeScript yang ada (mis. React 18, TypeScript 5) dan tambahkan rentang versi yang kompatibel; selaraskan lisensi antara MIT dan catatan non‑komersial di `index.html`.\\\",\\n  \\\"mendesak\\\":[\\\"Tidak ada bug eksplisit terdeteksi dalam kode yang disediakan, namun penggunaan versi paket yang belum dirilis (React 19.3.0, TypeScript 7.0.2) dapat menyebabkan runtime error pada lingkungan produksi.\\\"],\\n  \\\"angka\\\":[\\n    {\\\"label\\\":\\\"Dependensi total\\\",\\\"nilai\\\":\\\"5 paket\\\"},\\n    {\\\"label\\\":\\\"File sumber\\\",\\\"nilai\\\":\\\"≈30 file\\\"}\\n  ],\\n  \\\"detailTeknis\\\":\\\"\\\\n**Arsitektur \\u0026 Kode**\\\\n- Struktur repo mengikuti konvensi React + Vite + Three.js; pemisahan logika (`src/office.ts`), konfigurasi (`src/config.ts`), dan gaya 3D (`src/gaya/*`) sudah baik. \\\\n- Dokumentasi (`AGENTS.md`, `README.md`) jelas dan memberi panduan penggunaan.\\\\n\\\\n**Keamanan**\\\\n- Tidak ada kunci API, token, atau data sensitif yang hard‑coded. \\\\n- Semua dependensi di‑import melalui npm, namun versi yang dicantumkan (`react` ^19.3.0, `typescript` ^7.0.2) belum dirilis secara resmi; ini meningkatkan risiko supply‑chain attack atau incompatibility.\\\\n- `index.html` memuat Google Fonts tanpa Subresource Integrity (SRI); menambahkan `integrity` dan `crossorigin` dapat memperkuat keamanan.\\\\n\\\\n**Potensi Bug / Risiko**\\\\n- Karena `package.json` menggunakan versi mayor yang belum stabil, `npm install` dapat mengunduh versi yang berubah secara signifikan, menyebabkan breaking change pada API React atau TypeScript.\\\\n- Skrip test (`node scripts/test.mjs`) dijalankan dengan modul ES; pastikan file memiliki ekstensi `.mjs` dan `type\\\":\\\"module}\"}}\n"
   },
   "esok": {
-    "ringkasan": "Audit menemukan beberapa masalah kualitas kode, keamanan, dan performa di Kantor AI Template",
-    "menunggu": [
-      "Refactor OfficeScene.ts untuk mengurangi render loop berlebih dan gunakan useMemo pada geometri serta material Three.js"
-    ],
-    "mendesak": [
-      "scripts/rekam.mjs mengeksekusi kode dinamis dengan Function/ eval tanpa sanitasi, membuka potensi remote code execution"
-    ],
-    "angka": [
-      {
-        "label": "Ukuran bundle",
-        "nilai": "1.8 MB"
-      },
-      {
-        "label": "Kompleksitas",
-        "nilai": "Cyclomatic 12"
-      }
-    ]
+    "ringkasan": "❌ Groq Error (429): {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m7ev6bj8ebs8bjj5ekv0swk2` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 6782, Requested 4978. Please try again in 28.2s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n"
   },
   "lita": {
-    "ringkasan": "Temuan utama: struktur proyek rapi, namun terdapat XSS di index.html dan performa Three.js yang belum optimal",
-    "menunggu": [
-      "Refactor OfficeScene untuk lazy‑load model 3D"
-    ],
-    "mendesak": [
-      "XSS pada index.html memungkinkan injection via query string"
-    ],
-    "angka": [
-      {
-        "label": "Bundle Size",
-        "nilai": "2.3 MB"
-      },
-      {
-        "label": "FPS Avg",
-        "nilai": "45 fps"
-      }
-    ]
+    "ringkasan": "❌ Groq Error (429): {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m7ev6bj8ebs8bjj5ekv0swk2` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 6490, Requested 4977. Please try again in 26.0025s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n"
   }
 }

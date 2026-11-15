@@ -90,7 +90,47 @@ async function fetchGithubContext(input: string, token?: string) {
   return { owner, repo, codeBundle };
 }
 
+function extractJson(raw: string) {
+  const cleaned = raw.replace(/```json|```/gi, '').trim();
+  const start = cleaned.indexOf('{');
+  const end = cleaned.lastIndexOf('}');
+  if (start === -1 || end === -1) throw new Error('Output bukan JSON valid');
+  return JSON.parse(cleaned.slice(start, end + 1));
+}
+
 async function callLLM(prompt: string, geminiKey?: string, groqKey?: string) {
+  // 1. JALUR UTAMA: GEMINI API (Limit 250k - 1M TPM, jago coding & JSON)
+  if (geminiKey) {
+    const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-3.8-flash'];
+    for (const model of models) {
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: { responseMimeType: 'application/json', temperature: 0.2 },
+            }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            return extractJson(data.candidates?.[0]?.content?.parts?.[0]?.text || '{}');
+          }
+          if (res.status === 503 || res.status === 429) {
+            await new Promise((r) => setTimeout(r, 2500 * attempt));
+            continue;
+          }
+          if (res.status === 404) break;
+        } catch {
+          await new Promise((r) => setTimeout(r, 2000));
+        }
+      }
+    }
+  }
+
+  // 2. JALUR CADANGAN OTOMATIS: GROQ (Hanya dipakai jika semua model Gemini sedang 503)
   if (groqKey) {
     const modelsRes = await fetch('https://api.groq.com/openai/v1/models', {
       headers: { Authorization: `Bearer ${groqKey}` },
@@ -98,64 +138,40 @@ async function callLLM(prompt: string, geminiKey?: string, groqKey?: string) {
     const modelsData = modelsRes.ok ? await modelsRes.json() : { data: [] };
     const availableIds: string[] = (modelsData.data || []).map((m: any) => m.id);
 
-    // Prioritaskan model reasoning/coding terbesar yang tersedia di akun Groq
-    const preferred = ['openai/gpt-oss-120b', 'qwen/qwen3-32b', 'llama-3.3-70b-specdec', 'llama-3.1-8b-instant'];
+    const preferred = ['llama-3.1-8b-instant', 'qwen/qwen3-32b', 'openai/gpt-oss-120b'];
     const chosenModel =
       preferred.find((id) => availableIds.includes(id)) ||
       availableIds.find((id) => !id.includes('whisper') && !id.includes('guard')) ||
       'llama-3.1-8b-instant';
 
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${groqKey}` },
-      body: JSON.stringify({
-        model: chosenModel,
-        temperature: 0.2,
-        messages: [{ role: 'user', content: prompt }],
-        response_format: { type: 'json_object' },
-      }),
-    });
-    if (!res.ok) {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${groqKey}` },
+        body: JSON.stringify({
+          model: chosenModel,
+          temperature: 0.2,
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        return extractJson(data.choices?.[0]?.message?.content || '{}');
+      }
+
       const errTxt = await res.text();
+      if (res.status === 429 && attempt < 3) {
+        const waitMatch = errTxt.match(/try again in ([\d.]+)s/i);
+        const waitMs = waitMatch ? Math.ceil(parseFloat(waitMatch[1]) * 1000) + 1000 : 10000;
+        await new Promise((r) => setTimeout(r, waitMs));
+        continue;
+      }
       throw new Error(`Groq Error (${res.status}): ${errTxt}`);
     }
-    const data = await res.json();
-    return JSON.parse(data.choices?.[0]?.message?.content || '{}');
   }
 
-  const models = ['gemini-3.8-flash', 'gemini-3.8-flash-lite', 'gemini-2.5-flash-lite'];
-  for (const model of models) {
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: 'application/json', temperature: 0.2 },
-          }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          return JSON.parse(data.candidates?.[0]?.content?.parts?.[0]?.text || '{}');
-        }
-        if (res.status === 503 || res.status === 429) {
-          await new Promise((r) => setTimeout(r, 2500 * attempt));
-          continue;
-        }
-        if (res.status === 404) break;
-        throw new Error(`Gemini Error (${res.status})`);
-      } catch (err: any) {
-        if (attempt < 3) {
-          await new Promise((r) => setTimeout(r, 2000));
-          continue;
-        }
-        throw err;
-      }
-    }
-  }
-  throw new Error('Server LLM sedang padat (503). Coba lagi beberapa detik.');
+  throw new Error('Semua jalur LLM (Gemini & Groq) gagal merespons.');
 }
 
 // Perbaikan #2: Sertakan OfficeScene.tsx & index.html pada audit lokal
