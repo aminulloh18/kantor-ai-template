@@ -309,8 +309,26 @@ export default function App() {
       )}
 
       {open && (
-        <div className="ko-sheet" role="dialog" aria-label={open.agen.nama} onClick={() => setOpen(null)}>
-          <div className="ko-sheet-in" style={{ maxWidth: 640, maxHeight: '82vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+        <div
+          className="ko-sheet"
+          role="dialog"
+          aria-label={open.agen.nama}
+          onClick={() => setOpen(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 60,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px 16px 84px',
+          }}
+        >
+          <div
+            className="ko-sheet-in"
+            style={{ maxWidth: 640, width: '100%', maxHeight: '78vh', overflowY: 'auto', margin: 0 }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3>
               {open.agen.nama} <small>{open.agen.tugas}</small>
             </h3>
@@ -360,8 +378,26 @@ export default function App() {
       )}
 
       {showFullReport && (
-        <div className="ko-sheet" role="dialog" aria-label="Laporan Lengkap Tim" onClick={() => setShowFullReport(false)}>
-          <div className="ko-sheet-in" style={{ maxWidth: 760, maxHeight: '85vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+        <div
+          className="ko-sheet"
+          role="dialog"
+          aria-label="Laporan Lengkap Tim"
+          onClick={() => setShowFullReport(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 60,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px 16px 84px',
+          }}
+        >
+          <div
+            className="ko-sheet-in"
+            style={{ maxWidth: 760, width: '100%', maxHeight: '80vh', overflowY: 'auto', margin: 0 }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3>📋 Laporan Hasil Kerja Tim — {KANTOR.nama}</h3>
             {desks.map((d) => (
               <div key={d.desk.key} style={{ marginTop: 14, paddingBottom: 12, borderBottom: '1px solid rgba(0,0,0,0.1)' }}>
