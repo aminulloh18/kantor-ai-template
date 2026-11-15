@@ -1,7 +1,8 @@
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { flushSync } from 'react-dom';
 import { GAYA, KANTOR, TAMPIL_PEMILIH_GAYA } from './config';
 import { DAFTAR_GAYA, KUNCI_SIMPAN, cariGaya, gayaAwal, type GayaId } from './gaya/daftar';
+import laporanDetail from './laporanDetail.json';
 import { IDLE_LABEL, idleAt, isNight, isoDay, lapseAt, missionBoard, officeDesks, params as readParams, type DeskState, type IdleSpot } from './office';
 
 const OfficeScene = lazy(() => import('./OfficeScene'));
@@ -15,6 +16,11 @@ export default function App() {
   const [now, setNow] = useState(() => new Date());
   const [t, setT] = useState(0);
   const [open, setOpen] = useState<DeskState | null>(null);
+  const [cmd, setCmd] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [cmdErr, setCmdErr] = useState<string | null>(null);
+  const [showFullReport, setShowFullReport] = useState(false);
+
   const drive = useRef<((t: number) => void) | null>(null);
   const anchors = useRef(new Map<string, HTMLElement>());
   const boardAnchor = useRef<HTMLElement | null>(null);
@@ -42,7 +48,6 @@ export default function App() {
   };
   const g = cariGaya(gaya);
 
-  // Scene time (agents walking, bubbles) and, with ?timelapse=1, the office clock. ?rekam=1: window.__koFrame(t).
   useEffect(() => {
     if (p.rec) {
       const w = window as unknown as { __koFrame?: (t: number) => boolean };
@@ -61,6 +66,27 @@ export default function App() {
     return () => window.clearInterval(id);
   }, [p.rec]);
 
+  const kirimPerintah = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!cmd.trim() || busy) return;
+    setBusy(true);
+    setCmdErr(null);
+    try {
+      const res = await fetch('/api/run-sprint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: cmd.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || 'Gagal menjalankan tugas');
+      setCmd('');
+    } catch (err: any) {
+      setCmdErr(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const lapse = p.lapse ? lapseAt(t) : null;
   const time = lapse?.time ?? p.time ?? hm(now);
   const desks = officeDesks(isoDay(now), time, p.alwaysWork);
@@ -71,6 +97,7 @@ export default function App() {
   const working = desks.filter((d) => ['kerja', 'laporan', 'belajar'].includes(d.doing.activity)).length;
   const idle = desks.filter((d) => d.doing.activity === 'siaga').length;
   const latar = g.latar && (night ? g.latar.malam : g.latar.siang);
+  const detailMap = laporanDetail as Record<string, string>;
 
   return (
     <div className="ko" data-night={night || !!g.malam || undefined} data-gaya={gaya} style={latar ? { background: latar } : undefined}>
@@ -131,7 +158,18 @@ export default function App() {
       )}
 
       <aside className="ko-mini">
-        <h2>Mission Board</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2>Mission Board</h2>
+          {Object.keys(detailMap).length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowFullReport(true)}
+              style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: '#3a86ff', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+            >
+              📄 Laporan Lengkap
+            </button>
+          )}
+        </div>
         <ul>
           {board.items.slice(0, 3).map((it, i) => (
             <li key={i}>
@@ -150,6 +188,80 @@ export default function App() {
           </dl>
         )}
       </aside>
+
+      {/* COMMAND BAR INTERAKTIF DI LAYAR KANTOR */}
+      {!p.rec && (
+        <form
+          onSubmit={kirimPerintah}
+          style={{
+            position: 'fixed',
+            bottom: 16,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 40,
+            display: 'flex',
+            gap: 8,
+            background: 'rgba(20, 22, 28, 0.88)',
+            backdropFilter: 'blur(10px)',
+            padding: '8px 12px',
+            borderRadius: 14,
+            border: '1px solid rgba(255,255,255,0.14)',
+            width: 'min(620px, 92vw)',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.28)',
+          }}
+        >
+          <input
+            type="text"
+            value={cmd}
+            onChange={(e) => setCmd(e.target.value)}
+            disabled={busy}
+            placeholder={busy ? '⏳ Tim YAFIZHAN AI LAB sedang mengerjakan tugas...' : 'Beri perintah ke tim atau paste URL repo GitHub...'}
+            style={{
+              flex: 1,
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              color: '#fff',
+              fontSize: 13,
+            }}
+          />
+          <button
+            type="submit"
+            disabled={busy || !cmd.trim()}
+            style={{
+              background: busy ? '#555' : '#e4572e',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 9,
+              padding: '6px 14px',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: busy ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {busy ? 'Bekerja...' : 'Kirim Tugas'}
+          </button>
+        </form>
+      )}
+
+      {cmdErr && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 68,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 45,
+            background: '#c1121f',
+            color: '#fff',
+            padding: '6px 14px',
+            borderRadius: 8,
+            fontSize: 12,
+          }}
+        >
+          ⚠ {cmdErr}
+        </div>
+      )}
 
       {TAMPIL_PEMILIH_GAYA && !p.rec && (
         <nav className="ko-gaya" aria-label="Gaya 3D">
@@ -171,9 +283,10 @@ export default function App() {
         </nav>
       )}
 
+      {/* MODAL DETAIL PER AGEN (KLIK NAMA AGEN DI KANTOR 3D) */}
       {open && (
         <div className="ko-sheet" role="dialog" aria-label={open.agen.nama} onClick={() => setOpen(null)}>
-          <div className="ko-sheet-in" onClick={(e) => e.stopPropagation()}>
+          <div className="ko-sheet-in" style={{ maxWidth: 640, maxHeight: '82vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
             <h3>
               {open.agen.nama} <small>{open.agen.tugas}</small>
             </h3>
@@ -189,8 +302,39 @@ export default function App() {
                 ))}
               </ul>
             )}
-            <button type="button" onClick={() => setOpen(null)}>
+            {detailMap[open.desk.key] && (
+              <div style={{ marginTop: 12, padding: 12, background: 'rgba(0,0,0,0.06)', borderRadius: 10, fontSize: 13, whiteSpace: 'pre-wrap', lineHeight: 1.55 }}>
+                <b>📋 Hasil Kerja & Analisis {open.agen.nama}:</b>
+                <div style={{ marginTop: 6 }}>{detailMap[open.desk.key]}</div>
+              </div>
+            )}
+            <button type="button" style={{ marginTop: 12 }} onClick={() => setOpen(null)}>
               Tutup
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL REKAP LAPORAN SEMUA AGEN */}
+      {showFullReport && (
+        <div className="ko-sheet" role="dialog" aria-label="Laporan Lengkap Tim" onClick={() => setShowFullReport(false)}>
+          <div className="ko-sheet-in" style={{ maxWidth: 760, maxHeight: '85vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+            <h3>📋 Laporan Hasil Kerja Tim — {KANTOR.nama}</h3>
+            {desks.map((d) => (
+              <div key={d.desk.key} style={{ marginTop: 14, paddingBottom: 12, borderBottom: '1px solid rgba(0,0,0,0.1)' }}>
+                <b style={{ color: d.desk.color }}>
+                  {d.agen.nama} ({d.agen.tugas})
+                </b>
+                <p style={{ fontSize: 13, margin: '4px 0', fontWeight: 600 }}>{d.bubble}</p>
+                {detailMap[d.desk.key] && (
+                  <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 12.5, background: 'rgba(0,0,0,0.05)', padding: 10, borderRadius: 8, marginTop: 6 }}>
+                    {detailMap[d.desk.key]}
+                  </pre>
+                )}
+              </div>
+            ))}
+            <button type="button" style={{ marginTop: 14 }} onClick={() => setShowFullReport(false)}>
+              Tutup Laporan
             </button>
           </div>
         </div>
